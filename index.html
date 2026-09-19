@@ -410,6 +410,8 @@ const TITLES = { mine: '自分のタスク', team: 'チームのタスク', memo
 
 function startMain(){
     document.body.dataset.mode = 'main';
+    // ブラウザに「この端末の保存内容（ログイン情報）を消さないで」と頼む（対応ブラウザのみ）
+    try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
     const cache = ls.get('lab_cache');
     if (cache && cache.team === S.me.team) { S.members = cache.members || []; S.tasks = cache.tasks || []; updateNew(); }
     buildFrame();
