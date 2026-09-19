@@ -67,6 +67,10 @@ svg{display:block}
 .row .rm>*+*::before{content:"·";margin:0 5px;color:var(--dim);font-weight:400}
 .row>svg{flex:none;color:var(--dim)}
 .due{font-weight:600}.due.over{color:var(--bad)}.due.today,.due.soon{color:var(--warn)}
+.row.mine{box-shadow:inset 3px 0 0 var(--pri)}
+.row .rm>.me-tag::before{content:none}
+.row .rm>.me-tag{margin-left:6px}
+.me-tag{display:inline-block;height:17px;line-height:17px;padding:0 6px;border-radius:9px;font-size:11px;font-weight:700;color:var(--pri);background:var(--pri-l)}
 .dot{flex:none;width:9px;height:9px;border-radius:50%;background:var(--pri)}
 .dot.over{background:var(--bad)}.dot.today,.dot.soon{background:var(--warn)}.dot.done{background:var(--ok)}.dot.dropped{background:var(--dim)}
 .dot.none{background:transparent;box-shadow:inset 0 0 0 1.5px var(--dim)}
@@ -367,7 +371,7 @@ const API = {
 const S = {
     pass: null, me: null, admin: null, adminList: null, adminShell: false,
     members: [], tasks: [], logs: {},
-    tab: 'mine', taskStatus: 'open', teamFilter: 'all',
+    tab: 'tasks', taskStatus: 'open', teamFilter: 'all',
     memoDate: today(), memoScope: 'me', memoData: { notes: [], logs: [] }, memoLoaded: false,
     dl: { from: today().slice(0, 8) + '01', to: today(), scope: 'all' },
     sheets: [], room: null, roomTimer: null,
@@ -530,8 +534,7 @@ const ICON = {
 };
 const svg = (n, sz = 20, sw = 2) => `<svg viewBox="0 0 24 24" width="${sz}" height="${sz}" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[n]}</svg>`;
 const TABS = [
-    { id: 'mine', ic: 'tasks', t: 'タスク' },
-    { id: 'team', ic: 'team', t: 'チーム' },
+    { id: 'tasks', ic: 'tasks', t: 'タスク' },
     { id: 'memo', ic: 'memo', t: '記録' },
     { id: 'chat', ic: 'chat', t: '連絡' },
     { id: 'more', ic: 'more', t: '設定' }
@@ -555,15 +558,15 @@ function buildFrame(){
     app.innerHTML = `<div class="top" id="top"></div><div id="main"></div><div id="fabwrap"></div><div id="tabbar"></div>`;
 }
 function renderTop(){
-    const title = { mine: 'タスク', team: S.me.team, memo: '記録', chat: '連絡', more: '設定' }[S.tab];
-    const sub = { mine: `${S.me.name} · ${fmtMD(today())}`, team: 'チームのタスク', memo: S.me.team, chat: S.me.team, more: S.me.name }[S.tab];
+    const title = { tasks: 'タスク', memo: '記録', chat: '連絡', more: '設定' }[S.tab];
+    const sub = { tasks: `${S.me.team} · ${fmtMD(today())}`, memo: S.me.team, chat: S.me.team, more: S.me.name }[S.tab];
     $('#top').innerHTML = `<div class="tw"><h1>${esc(title)}</h1><div class="st">${esc(sub)}</div></div><button class="icon-btn" data-act="reload" aria-label="更新">${svg('refresh', 20)}</button>`;
 }
 function renderTabbar(){
     const newCount = S.newIds.size;
     const unread = Object.values(S.unread).reduce((a, b) => a + b, 0);
     $('#tabbar').innerHTML = TABS.map(t => {
-        const b = t.id === 'mine' ? newCount : t.id === 'chat' ? unread : 0;
+        const b = t.id === 'tasks' ? newCount : t.id === 'chat' ? unread : 0;
         return `<button data-act="tab" data-v="${t.id}" class="${S.tab === t.id ? 'on' : ''}">${svg(t.ic, 22, S.tab === t.id ? 2.2 : 1.8)}<span>${t.t}</span>${b ? `<span class="badge">${b > 99 ? '99+' : b}</span>` : ''}</button>`;
     }).join('');
 }
@@ -572,11 +575,11 @@ function render(){
     const main = $('#main'); const sc = main.scrollTop;
     const memoKeep = S.tab === 'memo' && $('#memoText') ? $('#memoText').value : '';
     renderTop(); renderTabbar();
-    const v = { mine: viewMine, team: viewTeam, memo: viewMemo, chat: viewChat, more: viewMore }[S.tab]();
+    const v = { tasks: viewTasks, memo: viewMemo, chat: viewChat, more: viewMore }[S.tab]();
     main.innerHTML = v;
     main.scrollTop = sc;
     if (memoKeep && $('#memoText')) $('#memoText').value = memoKeep;
-    $('#fabwrap').innerHTML = (S.tab === 'mine' || S.tab === 'team') ? `<button class="fab" data-act="newTask" aria-label="タスクを追加">${svg('plus', 26, 2.3)}</button>` : '';
+    $('#fabwrap').innerHTML = S.tab === 'tasks' ? `<button class="fab" data-act="newTask" aria-label="タスクを追加">${svg('plus', 26, 2.3)}</button>` : '';
 }
 function softRender(){ if (S.sheets.length || typing()) return; render(); }
 
@@ -616,8 +619,10 @@ function sortTasks(list, status){
 function taskRow(t, showWho){
     const di = dueInfo(t);
     const txt = dueText(t);
-    const meta = [txt ? `<span class="due ${t.status === 'open' ? di.cls : ''}">${esc(txt)}</span>` : '', showWho ? `<span>${esc(memName(t.assignee_id))}</span>` : ''].filter(Boolean).join('');
-    return `<button class="row" data-act="openTask" data-id="${t.id}"><span class="dot ${di.cls === 'ok' ? '' : di.cls}"></span>
+    const mine = t.assignee_id === S.me.id;
+    const who = mine ? '<span class="me-tag">自分</span>' : `<span>${esc(memName(t.assignee_id))}</span>`;
+    const meta = [txt ? `<span class="due ${t.status === 'open' ? di.cls : ''}">${esc(txt)}</span>` : '', showWho ? who : ''].filter(Boolean).join('');
+    return `<button class="row ${mine ? 'mine' : ''}" data-act="openTask" data-id="${t.id}"><span class="dot ${di.cls === 'ok' ? '' : di.cls}"></span>
         <span class="rb"><span class="rt">${esc(t.title)}${S.newIds.has(t.id) ? '<span class="new">NEW</span>' : ''}</span>${meta ? `<span class="rm">${meta}</span>` : ''}</span>${svg('chev', 16)}</button>`;
 }
 function emptyMsg(){
@@ -637,15 +642,12 @@ function segHTML(list){
     const b = (v, l) => `<button data-act="status" data-v="${v}" class="${S.taskStatus === v ? 'on' : ''}">${l}<span class="c">${c[v]}</span></button>`;
     return `<div class="seg">${b('open', '進行中')}${b('done', '完了')}${b('dropped', '破棄')}</div>`;
 }
-function viewMine(){
-    const mine = S.tasks.filter(t => t.assignee_id === S.me.id);
-    return segHTML(mine) + taskListHTML(mine.filter(t => t.status === S.taskStatus), false);
-}
-function viewTeam(){
-    const f = S.teamFilter;
-    const base = f === 'all' ? S.tasks : S.tasks.filter(t => t.assignee_id === f);
-    const chips = [`<button data-act="filter" data-v="all" class="${f === 'all' ? 'on' : ''}">全員</button>`]
-        .concat(visMembers().map(m => `<button data-act="filter" data-v="${m.id}" class="${f === m.id ? 'on' : ''}">${esc(m.name)}</button>`)).join('');
+function viewTasks(){
+    let f = S.teamFilter;
+    if (f !== 'all' && f !== 'me' && !visMembers().some(m => m.id === f)) f = S.teamFilter = 'all';
+    const base = f === 'all' ? S.tasks : S.tasks.filter(t => t.assignee_id === (f === 'me' ? S.me.id : f));
+    const chip = (v, label) => `<button data-act="filter" data-v="${v}" class="${f === v ? 'on' : ''}">${label}</button>`;
+    const chips = chip('all', '全員') + chip('me', '自分') + visMembers().filter(m => m.id !== S.me.id).map(m => chip(m.id, esc(m.name))).join('');
     return `<div class="chips">${chips}</div>${segHTML(base)}${taskListHTML(base.filter(t => t.status === S.taskStatus), true)}`;
 }
 
@@ -1188,12 +1190,12 @@ document.addEventListener('click', e => {
         case 'tab': S.tab = v; render(); $('#main').scrollTop = 0;
             if (v === 'memo') { S.memoLoaded = false; render(); loadMemo(); }
             if (v === 'chat') checkUnread();
-            if (v === 'mine' || v === 'team') refreshAll();
+            if (v === 'tasks') refreshAll();
             break;
         case 'status': S.taskStatus = v; render(); break;
         case 'filter': S.teamFilter = v; render(); break;
         case 'reload': refreshAll(); checkUnread(); if (S.tab === 'memo') loadMemo(); toast('更新しました', 1200); break;
-        case 'newTask': pushSheet({ type: 'form', assignee: S.tab === 'team' && S.teamFilter !== 'all' ? S.teamFilter : S.me.id }); break;
+        case 'newTask': pushSheet({ type: 'form', assignee: S.teamFilter !== 'all' && S.teamFilter !== 'me' ? S.teamFilter : S.me.id }); break;
         case 'editTask': pushSheet({ type: 'form', id: el.dataset.id }); break;
         case 'openTask': openTask(el.dataset.id); break;
         case 'back': closeSheet(); break;
