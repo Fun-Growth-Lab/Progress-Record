@@ -21,158 +21,192 @@
   --ok:#4ade80; --ok-l:rgba(74,222,128,.16);
   --warn:#fbbf24; --warn-l:rgba(251,191,36,.16);
   --bad:#ff8080; --bad-l:rgba(255,90,90,.18); --bad-fill:#d63b40;
-  --purple:#c4b5fd; --purple-l:rgba(196,181,253,.16); --on-ok:#06210f; --dim:#6b7fa8; --shadow:rgba(0,0,0,.55);
   --gray:#9fb0cf; --gray-l:#1d2947;
+  --purple:#c4b5fd; --purple-l:rgba(196,181,253,.16); --on-ok:#06210f; --dim:#6b7fa8; --shadow:rgba(0,0,0,.55);
   --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
-  --tab:68px;
+  --tab:54px;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
   font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI",Meiryo,sans-serif;
-  font-size:18px;line-height:1.5}
+  font-size:15px;line-height:1.5;font-feature-settings:"palt" 1;-webkit-text-size-adjust:100%}
 body{overscroll-behavior-y:none}
-button{font:inherit;color:inherit;cursor:pointer}
+button{font:inherit;color:inherit;cursor:pointer;background:none;border:0;padding:0}
 [hidden]{display:none!important}
+svg{display:block}
 
-#app{position:relative;height:100vh;height:100dvh;max-width:640px;margin:0 auto;display:flex;flex-direction:column;background:var(--bg)}
-.top{flex:none;display:flex;align-items:center;gap:8px;padding:calc(10px + env(safe-area-inset-top)) 16px 10px;background:var(--card);border-bottom:1px solid var(--line)}
-.top h1{flex:1;min-width:0;margin:0;font-size:22px;font-weight:800;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.top h1::before{content:"";display:inline-block;width:5px;height:1em;background:var(--pri);border-radius:3px;margin-right:10px;vertical-align:-2px}
-.top .who{flex:none;font-size:15px;font-weight:700;color:var(--sub);max-width:34%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.icon-btn{flex:none;width:48px;height:48px;border:1px solid var(--line);border-radius:14px;background:var(--gray-l);color:var(--ink);font-size:22px;line-height:1}
-#main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 14px 110px}
+#app{position:relative;height:100vh;height:100dvh;max-width:560px;margin:0 auto;display:flex;flex-direction:column;background:var(--bg)}
+.top{flex:none;display:flex;align-items:center;gap:4px;min-height:52px;padding:calc(6px + env(safe-area-inset-top)) 6px 6px 16px;background:var(--bg);border-bottom:1px solid var(--line)}
+.top .tw{flex:1;min-width:0}
+.top h1{margin:0;font-size:20px;font-weight:700;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top .st{font-size:12px;color:var(--sub);line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top.sh{padding-left:4px}
+.top.sh h1{font-size:17px}
+.icon-btn{flex:none;width:40px;height:40px;border-radius:10px;color:var(--sub);display:flex;align-items:center;justify-content:center}
+.icon-btn:active{background:var(--card2)}
+#main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 12px 84px}
 #tabbar{flex:none;display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
-#tabbar button{position:relative;flex:1;height:var(--tab);border:0;background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--sub);font-size:13px;font-weight:700}
-#tabbar button .ic{display:flex;height:26px;line-height:1}
+#tabbar button{position:relative;flex:1;height:var(--tab);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--dim);font-size:10.5px;font-weight:600}
 #tabbar button.on{color:var(--pri)}
-#tabbar button.on::before{content:"";position:absolute;top:0;left:22%;right:22%;height:4px;border-radius:0 0 4px 4px;background:var(--pri)}
-.badge{position:absolute;top:6px;left:calc(50% + 6px);min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:var(--bad-fill);color:#fff;font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center}
-.fab{position:absolute;right:16px;bottom:calc(var(--tab) + env(safe-area-inset-bottom) + 16px);height:60px;padding:0 24px;border:0;border-radius:30px;background:var(--pri);color:var(--on-pri);font-size:20px;font-weight:800;box-shadow:0 6px 20px var(--shadow)}
+.badge{position:absolute;top:4px;left:calc(50% + 5px);min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--bad-fill);color:#fff;font-size:10.5px;font-weight:800;display:flex;align-items:center;justify-content:center}
+.fab{position:absolute;right:16px;bottom:calc(var(--tab) + env(safe-area-inset-bottom) + 14px);width:52px;height:52px;border-radius:26px;background:var(--pri);color:var(--on-pri);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px var(--shadow)}
 .fab:active{background:var(--pri-d)}
 
-.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 16px;margin-bottom:12px}
-.hello{font-size:20px;font-weight:800;margin:2px 2px 12px}
-.hello small{display:block;font-size:15px;font-weight:600;color:var(--sub)}
-.seg{display:flex;gap:6px;background:var(--gray-l);padding:5px;border-radius:14px;margin-bottom:12px}
-.seg button{flex:1;min-height:48px;border:0;border-radius:10px;background:none;font-size:17px;font-weight:700;color:var(--sub)}
-.seg button.on{background:var(--pri-l);color:var(--pri);box-shadow:inset 0 0 0 1.5px var(--pri)}
-.chips{scrollbar-width:none;display:flex;gap:8px;overflow-x:auto;padding:2px 0 12px;margin:0 -14px;padding-left:14px;padding-right:14px;-webkit-overflow-scrolling:touch}
+/* ---- リスト ---- */
+.gh{display:flex;align-items:baseline;gap:6px;margin:16px 4px 6px;font-size:12px;font-weight:700;color:var(--sub);letter-spacing:.03em}
+.gh .n{font-weight:500;color:var(--dim)}
+.gh.over{color:var(--bad)} .gh.today{color:var(--warn)}
+.list{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.list>*+*{border-top:1px solid var(--line)}
+.row{display:flex;align-items:center;gap:10px;width:100%;min-height:50px;padding:9px 10px 9px 12px;text-align:left;color:var(--ink)}
+.row:active{background:var(--card2)}
+.row.static:active{background:none}
+.row .rb{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.row .rt{font-size:15px;font-weight:600;line-height:1.35;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word}
+.row .rm{font-size:12px;color:var(--sub);display:flex;flex-wrap:wrap;align-items:center}
+.row .rm>*+*::before{content:"·";margin:0 5px;color:var(--dim);font-weight:400}
+.row>svg{flex:none;color:var(--dim)}
+.due{font-weight:600}.due.over{color:var(--bad)}.due.today,.due.soon{color:var(--warn)}
+.dot{flex:none;width:9px;height:9px;border-radius:50%;background:var(--pri)}
+.dot.over{background:var(--bad)}.dot.today,.dot.soon{background:var(--warn)}.dot.done{background:var(--ok)}.dot.dropped{background:var(--dim)}
+.dot.none{background:transparent;box-shadow:inset 0 0 0 1.5px var(--dim)}
+.new{font-size:10px;font-weight:800;background:var(--bad-fill);color:#fff;padding:1px 6px;border-radius:8px;margin-left:6px;vertical-align:1px}
+.av{flex:none;width:32px;height:32px;border-radius:16px;background:var(--pri-l);color:var(--pri);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700}
+.av.lg{width:44px;height:44px;border-radius:22px;font-size:18px}
+.un{flex:none;background:var(--bad-fill);color:#fff;font-size:11px;font-weight:800;border-radius:9px;min-width:18px;height:18px;padding:0 5px;display:flex;align-items:center;justify-content:center}
+.cnt{font-size:12px;color:var(--sub)}
+.empty{text-align:center;color:var(--sub);padding:32px 12px;font-size:13px;line-height:1.6}
+.empty b{display:block;font-size:15px;color:var(--ink);margin-bottom:2px}
+.linkb{font-size:12px;color:var(--pri);font-weight:600;padding:6px 8px}
+
+/* ---- セグメント・チップ ---- */
+.seg{display:flex;gap:2px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:3px;margin-bottom:2px}
+.seg button{flex:1;height:30px;border-radius:8px;font-size:13px;font-weight:600;color:var(--sub)}
+.seg button .c{font-weight:500;color:var(--dim);margin-left:3px}
+.seg button.on{background:var(--pri-l);color:var(--pri)}
+.seg button.on .c{color:var(--pri)}
+.chips{scrollbar-width:none;display:flex;gap:6px;overflow-x:auto;margin:0 -12px 8px;padding:0 12px;-webkit-overflow-scrolling:touch}
 .chips::-webkit-scrollbar{display:none}
-.chips button,.chip{flex:none;min-height:44px;padding:0 16px;border:1.5px solid var(--line);border-radius:22px;background:var(--card);font-size:17px;font-weight:700;color:var(--ink)}
-.chips button.on,.chip.on{background:var(--pri);border-color:var(--pri);color:var(--on-pri)}
+.chips button{flex:none;height:32px;padding:0 13px;border:1px solid var(--line);border-radius:16px;background:var(--card);font-size:13px;font-weight:600;color:var(--sub)}
+.chips button.on{background:var(--pri);border-color:var(--pri);color:var(--on-pri)}
 
-.task{display:block;width:100%;text-align:left;border:1px solid var(--line);border-left:8px solid var(--pri);background:var(--card);border-radius:16px;padding:14px 16px;margin-bottom:12px;color:var(--ink)}
-.task.over{border-left-color:var(--bad)} .task.today{border-left-color:var(--warn)} .task.soon{border-left-color:var(--warn)}
-.task.done{border-left-color:var(--ok)} .task.dropped{border-left-color:var(--dim);opacity:.8}
-.task .tt{font-size:19px;font-weight:800;word-break:break-word}
-.task.dropped .tt{text-decoration:line-through;color:var(--sub)}
-.task .meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;align-items:center}
-.pill{display:inline-flex;align-items:center;gap:4px;min-height:32px;padding:0 12px;border-radius:16px;font-size:15px;font-weight:700;background:var(--gray-l);color:var(--gray)}
-.pill.over{background:var(--bad-l);color:var(--bad)} .pill.today{background:var(--warn-l);color:var(--warn)} .pill.soon{background:var(--warn-l);color:var(--warn)}
-.pill.ok,.pill.open{background:var(--pri-l);color:var(--pri)} .pill.done{background:var(--ok-l);color:var(--ok)} .pill.dropped{background:var(--gray-l);color:var(--gray)}
-.pill.new{background:var(--bad-fill);color:#fff}
-.pill.who{background:var(--purple-l);color:var(--purple)}
-.empty{text-align:center;color:var(--sub);padding:36px 12px;font-size:18px}
-
-label.l{display:block;font-size:16px;font-weight:800;color:var(--sub);margin:14px 0 6px}
-.inp{display:block;width:100%;font:inherit;font-size:18px;padding:13px 14px;border:2px solid var(--line);border-radius:12px;background:var(--field);color:var(--ink);min-height:54px;-webkit-appearance:none;appearance:none}
+/* ---- フォーム ---- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px}
+label.l{display:block;font-size:12px;font-weight:700;color:var(--sub);margin:12px 2px 5px}
+.inp{display:block;width:100%;font:inherit;font-size:16px;line-height:1.35;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--field);color:var(--ink);min-height:44px;-webkit-appearance:none;appearance:none}
 .inp::placeholder{color:var(--dim)}
-.inp:focus{outline:none;border-color:var(--pri)}
-textarea.inp{min-height:96px;resize:vertical}
-select.inp{background-image:linear-gradient(45deg,transparent 50%,var(--sub) 50%),linear-gradient(135deg,var(--sub) 50%,transparent 50%);background-position:calc(100% - 22px) 50%,calc(100% - 16px) 50%;background-size:6px 6px;background-repeat:no-repeat;padding-right:40px}
-.btn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;min-height:56px;border:0;border-radius:14px;background:var(--pri);color:var(--on-pri);font-size:19px;font-weight:800;padding:0 20px}
-.btn:active{filter:brightness(.9)}
+.inp:focus{outline:none;border-color:var(--pri);box-shadow:0 0 0 3px var(--pri-l)}
+textarea.inp{min-height:76px;resize:vertical}
+select.inp{background-image:linear-gradient(45deg,transparent 50%,var(--sub) 50%),linear-gradient(135deg,var(--sub) 50%,transparent 50%);background-position:calc(100% - 19px) 50%,calc(100% - 14px) 50%;background-size:5px 5px;background-repeat:no-repeat;padding-right:32px}
+.btn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;min-height:46px;border-radius:12px;background:var(--pri);color:var(--on-pri);font-size:15px;font-weight:700;padding:0 18px}
+.btn:active{filter:brightness(.92)}
 .btn:disabled{opacity:.5}
 .btn.ok{background:var(--ok);color:var(--on-ok)} .btn.bad{background:var(--bad-fill);color:#fff}
-.btn.ghost{background:transparent;color:var(--pri);border:2px solid var(--pri)}
-.btn.ghost.bad{color:var(--bad);border-color:var(--bad);background:transparent}
-.btn.gray{background:var(--gray-l);color:var(--ink);border:1px solid var(--line)}
-.btn.sm{min-height:46px;font-size:16px;width:auto;padding:0 16px}
-.row2{display:flex;gap:10px;margin-top:12px}.row2>*{flex:1}
-.row{display:flex;gap:10px;align-items:center}
-.quick{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
-.quick button{min-height:44px;padding:0 14px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;font-size:16px;font-weight:700}
-.err{color:var(--bad);font-weight:700;margin:10px 0 0}
-.hint{color:var(--sub);font-size:15px}
+.btn.ghost{background:transparent;color:var(--pri);border:1.5px solid var(--pri)}
+.btn.ghost.bad{color:var(--bad);border-color:var(--bad)}
+.btn.gray{background:var(--card2);color:var(--ink)}
+.btn.sm{min-height:34px;font-size:13px;width:auto;padding:0 13px;border-radius:9px}
+.row2{display:flex;gap:8px;margin-top:10px}.row2>*{flex:1}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.grid2>*{min-width:0}
+.quick{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.quick button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--card);color:var(--sub);border-radius:15px;font-size:12.5px;font-weight:600}
+.err{color:var(--bad);font-size:13px;font-weight:600;margin:8px 2px 0}
+.hint{color:var(--sub);font-size:12px;line-height:1.55}
+.chk{display:flex;align-items:center;gap:8px;margin:12px 2px 0;font-size:14px;color:var(--sub);cursor:pointer}
+.chk input{width:18px;height:18px;accent-color:var(--pri);margin:0}
 
-/* sheet */
+/* ---- シート（全画面） ---- */
 #sheet{position:fixed;left:0;right:0;top:0;height:100vh;height:100dvh;z-index:50;background:var(--bg)}
-.sheet-in{max-width:640px;margin:0 auto;height:100%;display:flex;flex-direction:column;background:var(--bg)}
-.sheet-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 14px calc(30px + env(safe-area-inset-bottom))}
-.tk-title{font-size:23px;font-weight:800;word-break:break-word;margin:2px 0 10px}
-.kv{display:flex;gap:8px;margin:6px 0;font-size:17px}.kv span{color:var(--sub);min-width:4.2em}.kv b{font-weight:800}
-.detail{white-space:pre-wrap;word-break:break-word;background:var(--field);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-top:10px;font-size:17px}
-h3.sec{font-size:18px;margin:20px 4px 8px;color:var(--sub)}
-.tl{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
-.tl:last-child{border-bottom:0}
-.tl-d{flex:none;width:72px;font-size:14px;font-weight:700;color:var(--sub);font-family:var(--mono)}
+.sheet-in{max-width:560px;margin:0 auto;height:100%;display:flex;flex-direction:column;background:var(--bg)}
+.sheet-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 12px calc(28px + env(safe-area-inset-bottom))}
+.dt-t{font-size:20px;font-weight:700;line-height:1.35;word-break:break-word;margin:2px 2px 8px}
+.dt-tags{display:flex;gap:6px;flex-wrap:wrap;margin:0 2px 12px}
+.pill{display:inline-flex;align-items:center;height:22px;padding:0 9px;border-radius:11px;font-size:12px;font-weight:700;background:var(--card2);color:var(--sub)}
+.pill.over{background:var(--bad-l);color:var(--bad)} .pill.today,.pill.soon{background:var(--warn-l);color:var(--warn)}
+.pill.ok,.pill.open{background:var(--pri-l);color:var(--pri)} .pill.done{background:var(--ok-l);color:var(--ok)} .pill.dropped{background:var(--card2);color:var(--sub)}
+.pill.open{background:var(--pri-l)}
+.prow{display:flex;align-items:center;gap:10px;padding:9px 12px;font-size:14px}
+.prow span{flex:none;width:44px;font-size:12px;color:var(--sub)}
+.prow b{font-weight:600}
+.detail{white-space:pre-wrap;word-break:break-word;background:var(--field);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:10px 0;font-size:14px}
+.tl{display:flex;gap:10px;padding:10px 12px}
+.tl-d{flex:none;width:40px;font-size:12px;font-weight:600;color:var(--sub);font-variant-numeric:tabular-nums;padding-top:1px}
 .tl-b{flex:1;min-width:0}
-.tl-b .nm{font-weight:800}
-.tl-b .tx{white-space:pre-wrap;word-break:break-word;margin-top:2px}
-.k{display:inline-block;padding:1px 10px;border-radius:10px;font-size:14px;font-weight:800;margin-right:6px}
-.k-note{background:var(--pri-l);color:var(--pri)} .k-done{background:var(--ok-l);color:var(--ok)} .k-drop{background:var(--gray-l);color:var(--gray)}
+.tl-b .nm{font-size:13px;font-weight:700}
+.tl-b .tx,.ent .tx{white-space:pre-wrap;word-break:break-word;margin-top:2px;font-size:14px}
+.k{display:inline-block;padding:0 7px;height:18px;line-height:18px;border-radius:9px;font-size:11px;font-weight:700;margin-right:6px;vertical-align:1px}
+.k-note{background:var(--pri-l);color:var(--pri)} .k-done{background:var(--ok-l);color:var(--ok)} .k-drop{background:var(--card2);color:var(--sub)}
 .k-create,.k-reopen,.k-assign,.k-due{background:var(--purple-l);color:var(--purple)}
 .k-memo{background:var(--warn-l);color:var(--warn)}
+.comp-row{display:flex;gap:8px;margin-top:8px}
+.comp-row .inp{flex:1;min-width:0}
+.comp-row .btn{width:88px;flex:none}
 
-/* memo */
-.datebar{display:flex;gap:8px;align-items:center;margin-bottom:12px}
-.datebar .icon-btn{background:var(--card)}
-.datebar input{flex:1;text-align:center;font-weight:800;font-size:19px;min-width:0}
-.entry{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:10px}
-.entry .hd{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:15px;color:var(--sub)}
-.entry .hd b{color:var(--ink)}
-.entry .tx{white-space:pre-wrap;word-break:break-word;margin-top:4px}
-.entry a.tk{cursor:pointer;display:block;margin-top:2px;font-weight:800;color:var(--pri)}
-.linkbtn{border:0;background:none;color:var(--bad);font-size:15px;font-weight:700;padding:6px 4px;margin-left:auto}
+/* ---- 記録 ---- */
+.datebar{display:flex;gap:4px;align-items:center;margin-bottom:8px}
+.datebar .inp{flex:1;text-align:center;font-weight:700;min-width:0}
+.ent{display:flex;gap:10px;padding:10px 12px}
+.ent .et{flex:none;width:40px;font-size:12px;color:var(--sub);font-variant-numeric:tabular-nums;padding-top:1px}
+.ent .eb{flex:1;min-width:0}
+.ent .eh{font-size:13px;display:flex;align-items:center;flex-wrap:wrap;gap:2px}
+.ent .eh b{font-weight:700;margin-right:4px}
+.ent a.tk{cursor:pointer;display:block;margin-top:2px;font-size:14px;font-weight:600;color:var(--pri)}
 
-/* chat */
-.room{display:flex;align-items:center;gap:12px;width:100%;text-align:left;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:16px;padding:14px 16px;margin-bottom:10px;min-height:68px}
-.room .av{flex:none;width:44px;height:44px;border-radius:22px;background:var(--pri-l);color:var(--pri);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px}
-.room .nm{flex:1;font-weight:800;font-size:19px;min-width:0;overflow:hidden;text-overflow:ellipsis}
-.room .un{background:var(--bad-fill);color:#fff;font-weight:800;font-size:14px;border-radius:12px;min-width:24px;height:24px;padding:0 7px;display:flex;align-items:center;justify-content:center}
-.msgs{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 12px 8px;display:flex;flex-direction:column;gap:6px}
-.dsep{align-self:center;background:var(--gray-l);color:var(--gray);font-size:14px;font-weight:700;border-radius:12px;padding:2px 12px;margin:8px 0 2px;font-family:var(--mono)}
+/* ---- 連絡 ---- */
+.msgs{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 12px 6px;display:flex;flex-direction:column;gap:4px}
+.dsep{align-self:center;background:var(--card2);color:var(--sub);font-size:11px;font-weight:700;border-radius:10px;padding:1px 10px;margin:8px 0 2px}
 .msg{max-width:82%;display:flex;flex-direction:column}
-.msg .bub{padding:10px 14px;border-radius:18px;white-space:pre-wrap;word-break:break-word;background:var(--card2);border:1px solid var(--line)}
-.msg .info{font-size:13px;color:var(--sub);margin:0 6px 2px}
-.msg.me{align-self:flex-end;align-items:flex-end}.msg.me .bub{background:var(--pri);color:var(--on-pri);border-color:var(--pri);border-bottom-right-radius:6px;font-weight:600}
-.msg.you{align-self:flex-start}.msg.you .bub{border-bottom-left-radius:6px}
+.msg .bub{padding:7px 12px;border-radius:16px;white-space:pre-wrap;word-break:break-word;background:var(--card2);border:1px solid var(--line);font-size:14.5px;line-height:1.45}
+.msg .info{font-size:11px;color:var(--sub);margin:0 6px 1px}
+.msg.me{align-self:flex-end;align-items:flex-end}.msg.me .bub{background:var(--pri);color:var(--on-pri);border-color:var(--pri);border-bottom-right-radius:5px;font-weight:600}
+.msg.you{align-self:flex-start}.msg.you .bub{border-bottom-left-radius:5px}
 .msg.pending{opacity:.6}
 .composer{flex:none;display:flex;gap:8px;align-items:flex-end;padding:8px 10px calc(8px + env(safe-area-inset-bottom));background:var(--card);border-top:1px solid var(--line)}
-.composer textarea{flex:1;min-height:52px;max-height:130px;resize:none;padding:12px 14px;line-height:1.35}
-.composer .btn{width:auto;min-width:88px;min-height:52px}
+.composer textarea{flex:1;min-height:44px;max-height:120px;resize:none;padding:10px 12px}
+.composer .btn{width:auto;min-width:64px;min-height:44px}
 
-/* theme picker */
-.themes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:10px}
-.theme{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-height:112px;padding:12px;border:2px solid;border-radius:14px;text-align:left}
-.theme.on{border-width:4px;padding:10px}
-.theme .tn{font-size:17px;font-weight:800}
-.theme .ts{font-size:13px;line-height:1.3}
-.theme .dots{display:flex;gap:6px;margin-top:auto;padding-top:8px}
-.theme .dots i{width:18px;height:18px;border-radius:9px;border:1px solid rgba(128,128,128,.45)}
+/* ---- 設定 ---- */
+.acc{display:flex;align-items:center;gap:12px}
+.acc .rb{flex:1;min-width:0;display:flex;flex-direction:column}
+.acc b{font-size:17px;font-weight:700;line-height:1.3}
+.acc span.t{font-size:12px;color:var(--sub)}
+.themes{display:flex;gap:8px;overflow-x:auto;margin:0 -12px;padding:2px 12px 4px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.themes::-webkit-scrollbar{display:none}
+.theme{flex:none;width:124px;display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:9px 10px;border:2px solid;border-radius:12px;text-align:left}
+.theme.on{padding:7px 8px;border-width:4px}
+.theme .tn{font-size:14px;font-weight:700;line-height:1.3}
+.theme .ts{font-size:10.5px;line-height:1.3}
+.theme .dots{display:flex;gap:5px;margin-top:6px}
+.theme .dots i{width:14px;height:14px;border-radius:7px;border:1px solid rgba(128,128,128,.45)}
 
-/* admin */
-.adm{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-.adm .adm-n{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:18px}
-.adm.off{opacity:.8}
+/* ---- 管理者 ---- */
+.tag{display:inline-flex;align-items:center;height:18px;padding:0 7px;border-radius:9px;font-size:11px;font-weight:700;background:var(--card2);color:var(--sub);margin-left:6px}
 
 /* 明るいテーマ：iPhoneのステータスバー（白文字）が読めるよう、ノッチ部分だけ暗くする */
 :root[data-scheme="light"]::before{content:"";position:fixed;top:0;left:0;right:0;height:env(safe-area-inset-top);background:#0b1120;z-index:200}
 
-/* modal / toast */
-#modal{position:fixed;inset:0;z-index:90;background:rgba(2,6,16,.68);display:flex;align-items:flex-end;justify-content:center}
-.dlg{width:100%;max-width:640px;background:var(--card2);border:1px solid var(--line);border-radius:24px 24px 0 0;padding:20px 18px calc(20px + env(safe-area-inset-bottom));max-height:92vh;overflow-y:auto}
-.dlg h2{margin:0 0 4px;font-size:22px}
-#toast{position:fixed;left:50%;width:max-content;bottom:calc(var(--tab) + env(safe-area-inset-bottom) + 90px);transform:translateX(-50%);z-index:100;background:var(--card2);color:var(--ink);border:1px solid var(--pri);font-weight:700;padding:12px 20px;border-radius:24px;max-width:88vw;text-align:center;box-shadow:0 6px 18px var(--shadow)}
+/* ---- ダイアログ・トースト ---- */
+#modal{position:fixed;inset:0;z-index:90;background:rgba(2,6,16,.66);display:flex;align-items:flex-end;justify-content:center}
+.dlg{width:100%;max-width:560px;background:var(--card2);border:1px solid var(--line);border-radius:18px 18px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom));max-height:92vh;overflow-y:auto}
+.dlg h2{margin:0 0 2px;font-size:17px;font-weight:700}
+#toast{position:fixed;left:50%;width:max-content;bottom:calc(var(--tab) + env(safe-area-inset-bottom) + 76px);transform:translateX(-50%);z-index:100;background:var(--card2);color:var(--ink);border:1px solid var(--pri);font-size:14px;font-weight:600;padding:9px 16px;border-radius:20px;max-width:88vw;text-align:center;box-shadow:0 6px 18px var(--shadow)}
 
-/* login */
-.center{min-height:100vh;min-height:100dvh;max-width:480px;margin:0 auto;padding:calc(28px + env(safe-area-inset-top)) 20px 30px;display:flex;flex-direction:column;justify-content:center}
-.logo{width:88px;height:88px;border-radius:22px;margin:0 auto 12px;display:block}
-.center h1{text-align:center;font-size:26px;margin:0 0 4px}
-.center .sub{text-align:center;color:var(--sub);margin:0 0 22px}
-.who-list button{display:flex;justify-content:space-between;align-items:center;width:100%;min-height:60px;margin-bottom:8px;padding:0 16px;border:1.5px solid var(--line);border-radius:14px;background:var(--card);color:var(--ink);font-size:19px;font-weight:800;text-align:left}
-.who-list small{font-size:14px;color:var(--sub);font-weight:700}
-.divider{text-align:center;color:var(--sub);font-weight:700;margin:18px 0 6px}
+/* ---- ログイン・登録（1画面1項目） ---- */
+.ob{width:100%;min-height:100vh;min-height:100dvh;max-width:420px;margin:0 auto;padding:calc(6px + env(safe-area-inset-top)) 20px calc(24px + env(safe-area-inset-bottom));display:flex;flex-direction:column}
+.ob-top{display:flex;align-items:center;justify-content:space-between;min-height:44px;margin:0 -8px}
+.ob-top .step{font-size:12px;font-weight:700;color:var(--sub);padding-right:8px;letter-spacing:.05em}
+.ob-body{flex:1;display:flex;flex-direction:column}
+.ob-h{font-size:22px;font-weight:700;line-height:1.3;margin:18px 0 14px}
+.brand{display:flex;flex-direction:column;align-items:center;gap:8px;margin:9vh 0 26px}
+.brand .logo{width:52px;height:52px;border-radius:13px}
+.brand h1{margin:0;font-size:20px;font-weight:700}
+.brand p{margin:0;font-size:12px;color:var(--sub)}
+.foot-links{display:flex;justify-content:center;gap:16px;margin-top:22px}
+.foot-links button{font-size:12px;color:var(--sub);text-decoration:underline;padding:6px}
+.radio{flex:none;width:18px;height:18px;border-radius:9px;border:2px solid var(--dim)}
+.row.sel{background:var(--pri-l)}
+.row.sel .radio{border-color:var(--pri);background:var(--pri);box-shadow:inset 0 0 0 3px var(--card)}
 </style>
 </head>
 <body>
@@ -366,90 +400,111 @@ function typing(){
 }
 
 /* ============================================================
-   ログイン → 名前・チーム登録
+   ログイン → アカウント選択 → 名前登録 → チーム選択/登録（1画面1項目）
    ============================================================ */
-function shell(inner){ $('#app').innerHTML = `<div class="center">${inner}</div>`; $('#app').style.height = 'auto'; }
+const OB = { all: [], name: '', team: '', newTeam: '', mode: 'select' };
+const initial = n => esc([...String(n || '?')][0]);
+function shell(inner){ $('#app').innerHTML = `<div class="ob">${inner}</div>`; $('#app').style.height = 'auto'; }
+const obHead = (back, step) => `<div class="ob-top">${back ? `<button class="icon-btn" data-act="${back}" aria-label="戻る">${svg('back', 22)}</button>` : '<span></span>'}${step ? `<span class="step">${step}</span>` : ''}</div>`;
+const footLinks = admin => `<div class="foot-links"><button data-act="forgetPw">パスワード再入力</button>${admin ? '<button data-act="admWho">管理者モード</button>' : ''}</div>`;
+
 function renderSetupNeeded(){
-    shell(`<img class="logo" src="icon-192.png" alt=""><h1>研究進捗アプリ</h1>
-      <p class="sub">はじめの設定がまだです</p>
-      <div class="card"><p style="margin:0">Supabase の設定が入っていません。<br><b>index.html</b> の先頭近くにある <b>CONFIG</b> に、
-      Project URL と publishable key を貼ってください。<br><span class="hint">手順は README.md にあります。</span></p></div>`);
+    shell(`<div class="brand"><img class="logo" src="icon-192.png" alt=""><h1>研究進捗アプリ</h1></div>
+      <div class="card"><p style="margin:0">Supabase の設定が入っていません。<b>index.html</b> の <b>CONFIG</b> に Project URL と publishable key を入れてください。<br><span class="hint">手順は README.md にあります。</span></p></div>`);
 }
 function renderLogin(msg){
     document.body.dataset.mode = 'login';
-    shell(`<img class="logo" src="icon-192.png" alt=""><h1>研究進捗アプリ</h1>
-      <p class="sub">パスワードを入れてください</p>
-      <label class="l" for="pw">パスワード</label>
-      <input id="pw" class="inp" type="password" autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="チームのパスワード">
-      ${msg ? `<p class="err" id="lerr">${esc(msg)}</p>` : '<p class="err" id="lerr" hidden></p>'}
-      <div style="height:14px"></div>
-      <button class="btn" id="loginBtn">入る</button>`);
-    const go = async () => {
+    shell(`<div class="ob-body"><div class="brand"><img class="logo" src="icon-192.png" alt=""><h1>研究進捗アプリ</h1><p>研究チームの進捗・連絡管理</p></div>
+      <form id="pwForm" autocomplete="on">
+        <label class="l" for="pw">パスワード</label>
+        <input id="pw" class="inp" type="password" autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false">
+        <label class="chk"><input type="checkbox" id="showPw"><span>パスワードを表示</span></label>
+        <p class="err" id="lerr" ${msg ? '' : 'hidden'}>${esc(msg || '')}</p>
+        <div style="height:14px"></div>
+        <button class="btn" id="loginBtn" type="submit">次へ</button>
+      </form></div>`);
+    $('#pwForm').onsubmit = async e => {
+        e.preventDefault();
         const raw = $('#pw').value.normalize('NFKC').trim();
         if (!raw) return;
         const btn = $('#loginBtn'); btn.disabled = true; btn.textContent = '確認中…';
         S.pass = await sha256hex(raw);
         try {
             const ok = await API.rpc('lab_check');
-            if (ok !== true) throw Object.assign(new Error('パスワードがちがいます'), { wrong: true });
+            if (ok !== true) throw Object.assign(new Error('パスワードが違います'), { wrong: true });
             ls.set('lab_pass', S.pass);
             const saved = ls.get('lab_me');
             if (saved) { S.me = saved; startMain(); } else await enterWho();
-        } catch (e) {
-            S.pass = null; btn.disabled = false; btn.textContent = '入る';
-            const el = $('#lerr'); el.textContent = e.wrong ? 'パスワードがちがいます' : errMsg(e); el.hidden = false;
+        } catch (err) {
+            S.pass = null; btn.disabled = false; btn.textContent = '次へ';
+            const el = $('#lerr'); el.textContent = err.wrong ? 'パスワードが違います' : errMsg(err); el.hidden = false;
         }
     };
-    $('#loginBtn').onclick = go;
-    $('#pw').onkeydown = e => { if (e.key === 'Enter') go(); };
 }
 async function enterWho(){
-    shell(`<p class="sub" style="margin-top:40vh">読み込み中…</p>`);
-    let all;
+    shell(`<div class="ob-body"><p class="hint" style="text-align:center;margin-top:40vh">読み込み中…</p></div>`);
     try {
-        try { all = await API.list('lab_members', { select: 'id,name,team,is_hidden', order: 'team.asc,name.asc' }); }
+        try { OB.all = await API.list('lab_members', { select: 'id,name,team,is_hidden', order: 'team.asc,name.asc' }); }
         catch (e) {   // 管理者用SQL（is_hidden列）をまだ実行していない場合の保険
             if (!/is_hidden/.test(e.message || '')) throw e;
-            all = await API.list('lab_members', { select: 'id,name,team', order: 'team.asc,name.asc' });
+            OB.all = await API.list('lab_members', { select: 'id,name,team', order: 'team.asc,name.asc' });
         }
     } catch (e) { handleErr(e); if (S.pass) renderLogin(errMsg(e)); return; }
-    renderWho(all);
+    renderAccounts();
 }
-function renderWho(allRows){
-    const all = allRows.filter(m => !m.is_hidden);
+const obVisible = () => OB.all.filter(m => !m.is_hidden);
+const obTeams = () => { const c = {}; obVisible().forEach(m => { c[m.team] = (c[m.team] || 0) + 1; }); return Object.entries(c); };
+
+/* アカウント選択 */
+function renderAccounts(){
+    const all = obVisible();
+    if (!all.length) { renderRegName(); return; }
     const teams = [...new Set(all.map(m => m.team))];
-    const list = all.length ? `<h3 class="sec" style="margin-top:0">すでに登録した人はここから</h3>
-        <div class="who-list">${all.map(m => `<button data-act="pickMe" data-id="${m.id}"><span>${esc(m.name)}</span><small>${esc(m.team)}</small></button>`).join('')}</div>
-        <div class="divider">— はじめて使う人は —</div>` : '';
-    shell(`<img class="logo" src="icon-192.png" alt=""><h1>あなたはだれ？</h1>
-      <p class="sub">名前とチームを登録します</p>
-      ${list}
-      <label class="l" for="rName">名前</label>
-      <input id="rName" class="inp" autocomplete="off" placeholder="例：山田 太郎" maxlength="20">
-      <label class="l" for="rTeam">チーム</label>
-      ${teams.length ? `<div class="chips" style="margin-bottom:0">${teams.map(t => `<button data-act="pickTeam" data-team="${esc(t)}">${esc(t)}</button>`).join('')}</div>` : ''}
-      <input id="rTeam" class="inp" autocomplete="off" placeholder="${teams.length ? '上から選ぶか、新しいチーム名' : '新しいチーム名（例：サッカーA）'}" maxlength="20">
-      <p class="err" id="rerr" hidden></p>
-      <div style="height:14px"></div>
-      <button class="btn" id="regBtn">登録して始める</button>
-      <button class="btn gray" style="margin-top:12px" data-act="logout">パスワードを入れ直す</button>
-      <div class="divider" style="margin-top:26px">— 制作者の方 —</div>
-      <button class="btn gray" data-act="admWho">🛠 管理者モード</button>`);
-    $('#regBtn').onclick = async () => {
-        const name = $('#rName').value.trim(), team = $('#rTeam').value.trim();
-        const er = $('#rerr');
-        if (!name || !team) { er.textContent = '名前とチームを入れてください'; er.hidden = false; return; }
-        const btn = $('#regBtn'); btn.disabled = true;
-        const row = { id: uuid(), name, team };
-        try {
-            await API.insert('lab_members', row);
-            setMe(row);
-        } catch (e) {
-            btn.disabled = false;
-            er.textContent = (e.status === 409 || e.code === '23505') ? 'その名前はそのチームですでに使われています。一覧から選ぶか、別の名前にしてください' : errMsg(e);
-            er.hidden = false;
-        }
+    shell(`${obHead()}<div class="ob-body"><h2 class="ob-h">アカウント選択</h2>
+      ${teams.map(t => `<div class="gh" style="margin-top:0">${esc(t)}</div><div class="list" style="margin-bottom:14px">${all.filter(m => m.team === t).map(m =>
+        `<button class="row" data-act="pickMe" data-id="${m.id}"><span class="av">${initial(m.name)}</span><span class="rb"><span class="rt">${esc(m.name)}</span></span>${svg('chev', 16)}</button>`).join('')}</div>`).join('')}
+      <button class="btn ghost" style="margin-top:6px" data-act="regStart">新規登録</button>
+      ${footLinks(true)}</div>`);
+}
+/* 新規登録 1/2：名前 */
+function renderRegName(err){
+    const has = obVisible().length > 0;
+    shell(`${obHead(has ? 'obAccounts' : '', '1 / 2')}<div class="ob-body"><h2 class="ob-h">名前登録</h2>
+      <form id="nameForm"><label class="l" for="rName" style="margin-top:0">名前</label>
+      <input id="rName" class="inp" maxlength="20" autocomplete="off" value="${esc(OB.name)}">
+      <p class="err" id="rerr" ${err ? '' : 'hidden'}>${esc(err || '')}</p>
+      <div style="height:14px"></div><button class="btn" type="submit">次へ</button></form>
+      ${has ? '' : footLinks(true)}</div>`);
+    $('#nameForm').onsubmit = e => {
+        e.preventDefault();
+        OB.name = $('#rName').value.trim();
+        if (!OB.name) { const er = $('#rerr'); er.textContent = '名前を入力してください'; er.hidden = false; return; }
+        renderRegTeam();
     };
+}
+/* 新規登録 2/2：チーム選択 または チーム登録 */
+function renderRegTeam(err){
+    const teams = obTeams();
+    if (!teams.length) OB.mode = 'new';
+    const isNew = OB.mode === 'new';
+    shell(`${obHead('obName', '2 / 2')}<div class="ob-body"><h2 class="ob-h">${isNew ? 'チーム登録' : 'チーム選択'}</h2>
+      ${teams.length ? `<div class="seg" style="margin-bottom:12px"><button data-act="obMode" data-v="select" class="${isNew ? '' : 'on'}">チーム選択</button><button data-act="obMode" data-v="new" class="${isNew ? 'on' : ''}">チーム登録</button></div>` : ''}
+      ${isNew ? `<label class="l" for="rTeam" style="margin-top:0">新しいチーム名</label><input id="rTeam" class="inp" maxlength="20" autocomplete="off" value="${esc(OB.newTeam)}">`
+              : `<div class="list">${teams.map(([t, n]) => `<button class="row ${OB.team === t ? 'sel' : ''}" data-act="obTeam" data-team="${esc(t)}"><span class="radio"></span><span class="rb"><span class="rt">${esc(t)}</span></span><span class="cnt">${n}人</span></button>`).join('')}</div>`}
+      <p class="err" id="rerr" ${err ? '' : 'hidden'}>${esc(err || '')}</p>
+      <div style="height:14px"></div><button class="btn" id="regBtn">登録</button></div>`);
+    $('#regBtn').onclick = submitReg;
+}
+async function submitReg(){
+    const isNew = OB.mode === 'new';
+    const team = isNew ? $('#rTeam').value.trim() : OB.team;
+    const fail = m => { const er = $('#rerr'); er.textContent = m; er.hidden = false; };
+    if (!team) return fail(isNew ? 'チーム名を入力してください' : 'チームを選択してください');
+    if (isNew && obTeams().some(([t]) => t === team)) return fail('そのチーム名はすでにあります。「チーム選択」から選んでください');
+    const btn = $('#regBtn'); btn.disabled = true;
+    const row = { id: uuid(), name: OB.name, team };
+    try { await API.insert('lab_members', row); OB.name = ''; OB.team = ''; OB.newTeam = ''; setMe(row); }
+    catch (e) { btn.disabled = false; fail((e.status === 409 || e.code === '23505') ? '同じチームに同じ名前のアカウントがあります' : errMsg(e)); }
 }
 function setMe(m){
     S.me = { id: m.id, name: m.name, team: m.team };
@@ -460,14 +515,27 @@ function setMe(m){
 /* ============================================================
    メイン画面
    ============================================================ */
+/* ---------- アイコン ---------- */
+const ICON = {
+    tasks: '<path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.5 6l1.6 1.6L8 4.5M3.5 12l1.6 1.6L8 10.5M3.5 18l1.6 1.6L8 16.5"/>',
+    team: '<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M17 14.3c2.6 0 4.5 2 4.5 4.7"/>',
+    memo: '<rect x="6" y="3" width="14" height="18" rx="2"/><path d="M10 8h6M10 12h6M10 16h3M3 7h3M3 12h3M3 17h3"/>',
+    chat: '<path d="M4 5h16v11H10l-5 4v-4H4z"/>',
+    more: '<path d="M4 7h9M19 7h1M4 17h1M11 17h9"/><circle cx="16" cy="7" r="2.2"/><circle cx="8" cy="17" r="2.2"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    back: '<path d="M15 5l-7 7 7 7"/>',
+    chev: '<path d="M9 5l7 7-7 7"/>',
+    refresh: '<path d="M20 11a8 8 0 1 0-2.4 5.7M20 4v7h-7"/>',
+    edit: '<path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4zM13.5 6.5l4 4"/>'
+};
+const svg = (n, sz = 20, sw = 2) => `<svg viewBox="0 0 24 24" width="${sz}" height="${sz}" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[n]}</svg>`;
 const TABS = [
-    { id: 'mine', ic: '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.5 6l1.6 1.6L8 4.5M3.5 12l1.6 1.6L8 10.5M3.5 18l1.6 1.6L8 16.5"/></svg>', t: 'タスク' },
-    { id: 'team', ic: '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M17 14.3c2.6 0 4.5 2 4.5 4.7"/></svg>', t: 'みんな' },
-    { id: 'memo', ic: '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="3" width="14" height="18" rx="2"/><path d="M10 8h6M10 12h6M10 16h3M3 7h3M3 12h3M3 17h3"/></svg>', t: 'きろく' },
-    { id: 'chat', ic: '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H10l-5 4v-4H4z"/></svg>', t: '連絡' },
-    { id: 'more', ic: '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h9M19 7h1M4 17h1M11 17h9"/><circle cx="16" cy="7" r="2.2"/><circle cx="8" cy="17" r="2.2"/></svg>', t: 'その他' }
+    { id: 'mine', ic: 'tasks', t: 'タスク' },
+    { id: 'team', ic: 'team', t: 'チーム' },
+    { id: 'memo', ic: 'memo', t: '記録' },
+    { id: 'chat', ic: 'chat', t: '連絡' },
+    { id: 'more', ic: 'more', t: '設定' }
 ];
-const TITLES = { mine: '自分のタスク', team: 'チームのタスク', memo: '日々のきろく', chat: '連絡', more: 'その他' };
 
 function startMain(){
     document.body.dataset.mode = 'main';
@@ -487,14 +555,16 @@ function buildFrame(){
     app.innerHTML = `<div class="top" id="top"></div><div id="main"></div><div id="fabwrap"></div><div id="tabbar"></div>`;
 }
 function renderTop(){
-    $('#top').innerHTML = `<h1>${TITLES[S.tab]}</h1><span class="who">${esc(S.me.name)}</span><button class="icon-btn" data-act="reload" aria-label="更新">↻</button>`;
+    const title = { mine: 'タスク', team: S.me.team, memo: '記録', chat: '連絡', more: '設定' }[S.tab];
+    const sub = { mine: `${S.me.name} · ${fmtMD(today())}`, team: 'チームのタスク', memo: S.me.team, chat: S.me.team, more: S.me.name }[S.tab];
+    $('#top').innerHTML = `<div class="tw"><h1>${esc(title)}</h1><div class="st">${esc(sub)}</div></div><button class="icon-btn" data-act="reload" aria-label="更新">${svg('refresh', 20)}</button>`;
 }
 function renderTabbar(){
     const newCount = S.newIds.size;
     const unread = Object.values(S.unread).reduce((a, b) => a + b, 0);
     $('#tabbar').innerHTML = TABS.map(t => {
         const b = t.id === 'mine' ? newCount : t.id === 'chat' ? unread : 0;
-        return `<button data-act="tab" data-v="${t.id}" class="${S.tab === t.id ? 'on' : ''}"><span class="ic">${t.ic}</span>${t.t}${b ? `<span class="badge">${b > 99 ? '99+' : b}</span>` : ''}</button>`;
+        return `<button data-act="tab" data-v="${t.id}" class="${S.tab === t.id ? 'on' : ''}">${svg(t.ic, 22, S.tab === t.id ? 2.2 : 1.8)}<span>${t.t}</span>${b ? `<span class="badge">${b > 99 ? '99+' : b}</span>` : ''}</button>`;
     }).join('');
 }
 function render(){
@@ -506,21 +576,33 @@ function render(){
     main.innerHTML = v;
     main.scrollTop = sc;
     if (memoKeep && $('#memoText')) $('#memoText').value = memoKeep;
-    $('#fabwrap').innerHTML = (S.tab === 'mine' || S.tab === 'team') ? `<button class="fab" data-act="newTask">＋ タスク</button>` : '';
+    $('#fabwrap').innerHTML = (S.tab === 'mine' || S.tab === 'team') ? `<button class="fab" data-act="newTask" aria-label="タスクを追加">${svg('plus', 26, 2.3)}</button>` : '';
 }
 function softRender(){ if (S.sheets.length || typing()) return; render(); }
 
-/* ---------- タスク一覧 ---------- */
+/* ---------- タスク一覧（期限ごとにグループ化） ---------- */
 function dueInfo(t){
-    if (t.status === 'done') return { cls: 'done', txt: '完了 ' + (t.closed_date ? fmtMD(t.closed_date) : '') };
-    if (t.status === 'dropped') return { cls: 'dropped', txt: '破棄 ' + (t.closed_date ? fmtMD(t.closed_date) : '') };
-    if (!t.due_date) return { cls: 'none', txt: '期限なし' };
+    if (t.status === 'done') return { cls: 'done' };
+    if (t.status === 'dropped') return { cls: 'dropped' };
+    if (!t.due_date) return { cls: 'none' };
     const d = diffDays(t.due_date, today());
-    if (d < 0) return { cls: 'over', txt: `期限切れ ${-d}日` };
-    if (d === 0) return { cls: 'today', txt: '今日まで' };
-    if (d === 1) return { cls: 'soon', txt: '明日まで' };
-    if (d <= 3) return { cls: 'soon', txt: `あと${d}日（${fmtM(t.due_date)}）` };
-    return { cls: 'ok', txt: `あと${d}日（${fmtM(t.due_date)}）` };
+    return { cls: d < 0 ? 'over' : d === 0 ? 'today' : d <= 3 ? 'soon' : 'ok' };
+}
+function dueText(t){
+    if (t.status === 'done') return `完了 ${t.closed_date ? fmtM(t.closed_date) : ''}`;
+    if (t.status === 'dropped') return `破棄 ${t.closed_date ? fmtM(t.closed_date) : ''}`;
+    if (!t.due_date) return '';
+    const d = diffDays(t.due_date, today());
+    if (d < 0) return `${fmtMD(t.due_date)} ${-d}日超過`;
+    if (d === 0) return '今日';
+    if (d === 1) return '明日';
+    return fmtMD(t.due_date);
+}
+const GROUPS = [['over', '期限切れ'], ['today', '今日'], ['week', '7日以内'], ['later', 'それ以降'], ['none', '期限なし']];
+function dueGroup(t){
+    if (!t.due_date) return 'none';
+    const d = diffDays(t.due_date, today());
+    return d < 0 ? 'over' : d === 0 ? 'today' : d <= 7 ? 'week' : 'later';
 }
 function sortTasks(list, status){
     if (status === 'open') {
@@ -531,41 +613,40 @@ function sortTasks(list, status){
     }
     return list.slice().sort((a, b) => (b.closed_at || b.created_at) > (a.closed_at || a.created_at) ? 1 : -1);
 }
-function taskCard(t, showWho){
+function taskRow(t, showWho){
     const di = dueInfo(t);
-    const cls = t.status === 'open' ? (['over', 'today', 'soon'].includes(di.cls) ? di.cls : '') : t.status;
-    return `<button class="task ${cls}" data-act="openTask" data-id="${t.id}">
-        <div class="tt">${esc(t.title)}</div>
-        <div class="meta">
-          ${S.newIds.has(t.id) ? '<span class="pill new">NEW</span>' : ''}
-          <span class="pill ${di.cls}">${t.status === 'open' && di.cls !== 'none' ? '⏰ ' : ''}${esc(di.txt)}</span>
-          ${showWho ? `<span class="pill who">${esc(memName(t.assignee_id))}</span>` : ''}
-        </div></button>`;
+    const txt = dueText(t);
+    const meta = [txt ? `<span class="due ${t.status === 'open' ? di.cls : ''}">${esc(txt)}</span>` : '', showWho ? `<span>${esc(memName(t.assignee_id))}</span>` : ''].filter(Boolean).join('');
+    return `<button class="row" data-act="openTask" data-id="${t.id}"><span class="dot ${di.cls === 'ok' ? '' : di.cls}"></span>
+        <span class="rb"><span class="rt">${esc(t.title)}${S.newIds.has(t.id) ? '<span class="new">NEW</span>' : ''}</span>${meta ? `<span class="rm">${meta}</span>` : ''}</span>${svg('chev', 16)}</button>`;
+}
+function emptyMsg(){
+    return { open: '<b>タスクはありません</b>右下の＋から追加できます', done: '<b>完了したタスクはありません</b>', dropped: '<b>破棄したタスクはありません</b>' }[S.taskStatus];
+}
+function taskListHTML(list, showWho){
+    if (!list.length) return `<div class="empty">${emptyMsg()}</div>`;
+    if (S.taskStatus !== 'open') return `<div class="list" style="margin-top:10px">${sortTasks(list, S.taskStatus).map(t => taskRow(t, showWho)).join('')}</div>`;
+    const sorted = sortTasks(list, 'open');
+    return GROUPS.map(([g, label]) => {
+        const items = sorted.filter(t => dueGroup(t) === g);
+        return items.length ? `<div class="gh ${g}">${label}<span class="n">${items.length}</span></div><div class="list">${items.map(t => taskRow(t, showWho)).join('')}</div>` : '';
+    }).join('');
 }
 function segHTML(list){
     const c = { open: 0, done: 0, dropped: 0 }; list.forEach(t => c[t.status]++);
-    const b = (v, l) => `<button data-act="status" data-v="${v}" class="${S.taskStatus === v ? 'on' : ''}">${l} ${c[v]}</button>`;
+    const b = (v, l) => `<button data-act="status" data-v="${v}" class="${S.taskStatus === v ? 'on' : ''}">${l}<span class="c">${c[v]}</span></button>`;
     return `<div class="seg">${b('open', '進行中')}${b('done', '完了')}${b('dropped', '破棄')}</div>`;
-}
-function emptyMsg(){
-    return { open: 'タスクはありません<br><span class="hint">右下の「＋ タスク」で作れます</span>', done: '完了したタスクはまだありません', dropped: '破棄したタスクはありません' }[S.taskStatus];
 }
 function viewMine(){
     const mine = S.tasks.filter(t => t.assignee_id === S.me.id);
-    const list = sortTasks(mine.filter(t => t.status === S.taskStatus), S.taskStatus);
-    const od = mine.filter(t => t.status === 'open' && t.due_date && t.due_date < today()).length;
-    return `<div class="hello">${esc(S.me.name)}さん<small>${fmtLong(today())}${od ? `　<span style="color:var(--bad)">期限切れ ${od}件</span>` : ''}</small></div>
-        ${segHTML(mine)}
-        ${list.length ? list.map(t => taskCard(t, false)).join('') : `<div class="empty">${emptyMsg()}</div>`}`;
+    return segHTML(mine) + taskListHTML(mine.filter(t => t.status === S.taskStatus), false);
 }
 function viewTeam(){
     const f = S.teamFilter;
     const base = f === 'all' ? S.tasks : S.tasks.filter(t => t.assignee_id === f);
-    const list = sortTasks(base.filter(t => t.status === S.taskStatus), S.taskStatus);
     const chips = [`<button data-act="filter" data-v="all" class="${f === 'all' ? 'on' : ''}">全員</button>`]
         .concat(visMembers().map(m => `<button data-act="filter" data-v="${m.id}" class="${f === m.id ? 'on' : ''}">${esc(m.name)}</button>`)).join('');
-    return `<div class="chips">${chips}</div>${segHTML(base)}
-        ${list.length ? list.map(t => taskCard(t, true)).join('') : `<div class="empty">${emptyMsg()}</div>`}`;
+    return `<div class="chips">${chips}</div>${segHTML(base)}${taskListHTML(base.filter(t => t.status === S.taskStatus), true)}`;
 }
 
 /* ---------- きろく（日付ごと） ---------- */
@@ -580,22 +661,21 @@ function viewMemo(){
     items.sort((a, b) => a.at < b.at ? -1 : 1);
     const html = items.map(i => {
         const who = `<b>${esc(memName(i.member_id))}</b>`;
-        if (i.type === 'note') return `<div class="entry"><div class="hd"><span class="k k-memo">メモ</span>${who}<span>${fmtHM(i.at)}</span>
-            ${i.member_id === S.me.id ? `<button class="linkbtn" data-act="delMemo" data-id="${i.id}">削除</button>` : ''}</div><div class="tx">${esc(i.body)}</div></div>`;
+        if (i.type === 'note') return `<div class="ent"><span class="et">${fmtHM(i.at)}</span><div class="eb"><div class="eh"><span class="k k-memo">メモ</span>${who}
+            ${i.member_id === S.me.id ? `<button class="linkb" style="margin-left:auto;color:var(--bad)" data-act="delMemo" data-id="${i.id}">削除</button>` : ''}</div><div class="tx">${esc(i.body)}</div></div></div>`;
         const t = S.tasks.find(x => x.id === i.task_id);
-        return `<div class="entry"><div class="hd"><span class="k k-${i.kind}">${KIND[i.kind] || i.kind}</span>${who}<span>${fmtHM(i.at)}</span></div>
-            <a class="tk" data-act="openTask" data-id="${i.task_id}">${t ? '📋 ' + esc(t.title) : '（タスク）'}</a>${i.body ? `<div class="tx">${esc(i.body)}</div>` : ''}</div>`;
+        return `<div class="ent"><span class="et">${fmtHM(i.at)}</span><div class="eb"><div class="eh"><span class="k k-${i.kind}">${KIND[i.kind] || i.kind}</span>${who}</div>
+            <a class="tk" data-act="openTask" data-id="${i.task_id}">${t ? esc(t.title) : '（タスク）'}</a>${i.body ? `<div class="tx">${esc(i.body)}</div>` : ''}</div></div>`;
     }).join('');
     return `<div class="datebar">
-        <button class="icon-btn" data-act="memoShift" data-v="-1" aria-label="前の日">‹</button>
+        <button class="icon-btn" data-act="memoShift" data-v="-1" aria-label="前の日">${svg('back', 20)}</button>
         <input class="inp" type="date" id="memoDate" value="${d}">
-        <button class="icon-btn" data-act="memoShift" data-v="1" aria-label="次の日">›</button></div>
-      ${d !== today() ? `<button class="btn gray sm" style="margin-bottom:12px" data-act="memoToday">今日にもどる</button>` : ''}
-      <div class="card"><label class="l" style="margin-top:0" for="memoText">${d === today() ? '今日' : fmtLong(d)}のメモ</label>
-        <textarea id="memoText" class="inp" placeholder="やったこと・気づき・試合結果など"></textarea>
-        <div style="height:10px"></div><button class="btn" data-act="addMemo">メモを記録</button></div>
-      <div class="seg"><button data-act="memoScope" data-v="me" class="${sc === 'me' ? 'on' : ''}">自分のきろく</button><button data-act="memoScope" data-v="all" class="${sc === 'all' ? 'on' : ''}">みんなのきろく</button></div>
-      ${!S.memoLoaded ? '<div class="empty">読み込み中…</div>' : html || '<div class="empty">この日のきろくはありません</div>'}`;
+        <button class="icon-btn" data-act="memoShift" data-v="1" aria-label="次の日">${svg('chev', 20)}</button></div>
+      ${d !== today() ? `<div style="text-align:center;margin:-4px 0 6px"><button class="linkb" data-act="memoToday">今日にもどる</button></div>` : ''}
+      <div class="card"><textarea id="memoText" class="inp" rows="2" placeholder="メモ（やったこと・結果・気づき）"></textarea>
+        <div style="height:8px"></div><button class="btn" data-act="addMemo">記録する</button></div>
+      <div class="seg"><button data-act="memoScope" data-v="me" class="${sc === 'me' ? 'on' : ''}">自分</button><button data-act="memoScope" data-v="all" class="${sc === 'all' ? 'on' : ''}">チーム全員</button></div>
+      ${!S.memoLoaded ? '<div class="empty">読み込み中…</div>' : html ? `<div class="gh">${fmtLong(d)}<span class="n">${items.length}</span></div><div class="list">${html}</div>` : '<div class="empty"><b>記録はありません</b></div>'}`;
 }
 const KIND = { create: '作成', note: '進捗', done: '完了', drop: '破棄', reopen: '再開', assign: '担当変更', due: '期限変更' };
 async function loadMemo(){
@@ -636,34 +716,35 @@ async function delMemo(id){
 function viewChat(){
     const others = visMembers().filter(m => m.id !== S.me.id);
     const un = k => S.unread[k] ? `<span class="un">${S.unread[k]}</span>` : '';
-    return `<button class="room" data-act="openRoom" data-key="team"><span class="av">👥</span><span class="nm">${esc(S.me.team)}（全員）</span>${un('team')}</button>
-      <h3 class="sec">個人あて</h3>
-      ${others.length ? others.map(m => `<button class="room" data-act="openRoom" data-key="${m.id}"><span class="av">${esc([...m.name][0])}</span><span class="nm">${esc(m.name)}</span>${un(m.id)}</button>`).join('') : '<div class="empty">まだほかのメンバーがいません</div>'}`;
+    return `<div class="gh" style="margin-top:4px">チーム</div>
+      <div class="list"><button class="row" data-act="openRoom" data-key="team"><span class="av">${svg('team', 18)}</span><span class="rb"><span class="rt">${esc(S.me.team)}</span><span class="rm">全員</span></span>${un('team')}${svg('chev', 16)}</button></div>
+      <div class="gh">個別<span class="n">${others.length}</span></div>
+      ${others.length ? `<div class="list">${others.map(m => `<button class="row" data-act="openRoom" data-key="${m.id}"><span class="av">${initial(m.name)}</span><span class="rb"><span class="rt">${esc(m.name)}</span></span>${un(m.id)}${svg('chev', 16)}</button>`).join('')}</div>` : '<div class="empty">ほかのメンバーがいません</div>'}`;
 }
 
 /* ---------- その他（ダウンロードなど） ---------- */
 function viewMore(){
     const d = S.dl; const cur = THEMES[ls.get('lab_theme', 'lab')] ? ls.get('lab_theme', 'lab') : 'lab';
-    return `<div class="card"><div class="kv"><span>名前</span><b>${esc(S.me.name)}</b></div><div class="kv"><span>チーム</span><b>${esc(S.me.team)}</b></div>
-        <button class="btn gray sm" style="margin-top:8px" data-act="rename">名前を変える</button></div>
-      <div class="card"><h3 class="sec" style="margin:0 0 4px">🎨 テーマ（背景と色のセット）</h3>
-        <p class="hint" style="margin:0">この端末での見た目を選べます。</p>
-        <div class="themes">${Object.entries(THEMES).map(([id, t]) => `<button class="theme ${cur === id ? 'on' : ''}" data-act="theme" data-v="${id}" style="background:${t.bg};color:${t.ink};border-color:${cur === id ? t.pri : t.line}">
-          <span class="tn">${cur === id ? '✓ ' : ''}${esc(t.n)}</span><span class="ts" style="color:${t.sub}">${esc(t.s)}</span>
-          <span class="dots">${[t.card, t.pri, t.ok, t.warn, t.bad].map(c => `<i style="background:${c}"></i>`).join('')}</span></button>`).join('')}</div></div>
-      <div class="card"><h3 class="sec" style="margin:0 0 4px">📥 きろくをダウンロード（CSV）</h3>
-        <p class="hint" style="margin:0 0 4px">進捗メモ・完了・破棄・今日のメモを、日付つきで1つの表にします。Excelで開けます。</p>
-        <label class="l" for="dlFrom">はじめの日</label><input class="inp" type="date" id="dlFrom" value="${d.from}">
-        <label class="l" for="dlTo">おわりの日</label><input class="inp" type="date" id="dlTo" value="${d.to}">
-        <div class="seg" style="margin-top:14px"><button data-act="dlScope" data-v="me" class="${d.scope === 'me' ? 'on' : ''}">自分だけ</button><button data-act="dlScope" data-v="all" class="${d.scope === 'all' ? 'on' : ''}">チーム全員</button></div>
-        <button class="btn" data-act="download">ダウンロード</button></div>
-      <div class="card"><h3 class="sec" style="margin:0 0 4px">📱 ホーム画面に追加</h3>
-        <p class="hint" style="margin:0"><b>iPhone</b>：Safariで開き、共有ボタン → 「ホーム画面に追加」<br><b>Android</b>：Chromeのメニュー → 「ホーム画面に追加」</p></div>
-      <div class="card"><h3 class="sec" style="margin:0 0 4px">🛠 管理者モード</h3>
-        <p class="hint" style="margin:0 0 10px">制作者用です。メンバーの非表示と、元に戻す操作ができます。</p>
-        ${S.admin ? `<div class="row2" style="margin-top:0"><button class="btn sm" data-act="admOpen">メンバー管理</button><button class="btn gray sm" data-act="admExit">終了</button></div>`
-                  : `<button class="btn gray sm" data-act="admLogin">管理者モードに入る</button>`}</div>
-      <button class="btn ghost bad" data-act="logout">ログアウト（この端末の登録を消す）</button>`;
+    const chev = svg('chev', 16);
+    return `<div class="card acc"><span class="av lg">${initial(S.me.name)}</span><div class="rb"><b>${esc(S.me.name)}</b><span class="t">${esc(S.me.team)}</span></div><button class="btn gray sm" data-act="rename">名前変更</button></div>
+      <div class="gh">テーマ</div>
+      <div class="themes">${Object.entries(THEMES).map(([id, t]) => `<button class="theme ${cur === id ? 'on' : ''}" data-act="theme" data-v="${id}" style="background:${t.bg};color:${t.ink};border-color:${cur === id ? t.pri : t.line}">
+          <span class="tn">${esc(t.n)}</span><span class="ts" style="color:${t.sub}">${esc(t.s)}</span>
+          <span class="dots">${[t.card, t.pri, t.ok, t.warn, t.bad].map(c => `<i style="background:${c}"></i>`).join('')}</span></button>`).join('')}</div>
+      <div class="gh">記録のダウンロード</div>
+      <div class="card"><div class="grid2"><div><label class="l" style="margin-top:0" for="dlFrom">開始日</label><input class="inp" type="date" id="dlFrom" value="${d.from}"></div>
+          <div><label class="l" style="margin-top:0" for="dlTo">終了日</label><input class="inp" type="date" id="dlTo" value="${d.to}"></div></div>
+        <div class="seg" style="margin:10px 0"><button data-act="dlScope" data-v="me" class="${d.scope === 'me' ? 'on' : ''}">自分</button><button data-act="dlScope" data-v="all" class="${d.scope === 'all' ? 'on' : ''}">チーム全員</button></div>
+        <button class="btn" data-act="download">CSVをダウンロード</button>
+        <p class="hint" style="margin:8px 2px 0">進捗・完了・破棄・メモを日付つきで保存します。Excelで開けます。</p></div>
+      <div class="gh">管理者</div>
+      <div class="list">${S.admin ? `<button class="row" data-act="admOpen"><span class="rb"><span class="rt">メンバー管理</span></span>${chev}</button>
+          <button class="row" data-act="admExit"><span class="rb"><span class="rt">管理者モードを終了</span></span>${chev}</button>`
+        : `<button class="row" data-act="admLogin"><span class="rb"><span class="rt">管理者モード</span></span>${chev}</button>`}</div>
+      <div class="gh">この端末</div>
+      <div class="list"><button class="row" data-act="switchAcc"><span class="rb"><span class="rt">アカウント切替</span></span>${chev}</button>
+        <button class="row" data-act="forgetPw"><span class="rb"><span class="rt">パスワードを削除</span><span class="rm">次回からパスワード入力が必要になります</span></span>${chev}</button></div>
+      <p class="hint" style="margin:14px 4px">ホーム画面に追加：iPhone は Safari の共有ボタン →「ホーム画面に追加」、Android は Chrome のメニュー →「ホーム画面に追加」。</p>`;
 }
 function csvCell(v){
     let x = String(v ?? '');
@@ -728,9 +809,9 @@ async function refreshAll(){
         if (!mem(S.me.id)) {
             // RLSでは間違ったパスワードだと「空」が返るだけ（エラーにならない）。先にパスワードを確認する
             if ((await API.rpc('lab_check')) !== true) throw Object.assign(new Error('パスワードが確認できません'), { status: 401 });
-            toast('登録が見つかりません。登録し直してください', 4000); doLogout(true); return;
+            toast('登録が見つかりません。アカウントを選び直してください', 4000); switchAccount(true); return;
         }
-        if (mem(S.me.id).is_hidden) { toast('このアカウントは使えなくなっています。管理者に連絡してください', 5000); doLogout(true); return; }
+        if (mem(S.me.id).is_hidden) { toast('このアカウントは使えなくなっています。管理者に連絡してください', 5000); switchAccount(true); return; }
         saveCache(); updateNew();
         softRender();
         if (S.tab === 'memo') loadMemo();
@@ -773,41 +854,41 @@ function renderSheet(){
     Object.entries(keep).forEach(([id, v]) => { const x = el.querySelector('#' + id); if (x && v !== '' && x.tagName !== 'SELECT') x.value = v; });
     if (top.type === 'room') { const m = $('#msgs'); if (m) m.scrollTop = m.scrollHeight; }
 }
-const sheetHead = (title, right) => `<div class="top"><button class="icon-btn" data-act="back" aria-label="戻る">‹</button><h1>${title}</h1>${right || ''}</div>`;
+const sheetHead = (title, right) => `<div class="top sh"><button class="icon-btn" data-act="back" aria-label="戻る">${svg('back', 22)}</button><div class="tw"><h1>${title}</h1></div>${right || ''}</div>`;
 
 /* ---------- タスク詳細 ---------- */
 function curTask(){ const s = S.sheets.find(x => x.type === 'task'); return s && S.tasks.find(t => t.id === s.id); }
 function sheetTask(top){
     const t = S.tasks.find(x => x.id === top.id);
-    if (!t) return sheetHead('タスク') + `<div class="sheet-body"><div class="empty">タスクが見つかりません</div></div>`;
+    if (!t) return sheetHead('タスク') + `<div class="sheet-body"><div class="empty"><b>タスクが見つかりません</b></div></div>`;
     const di = dueInfo(t); const logs = S.logs[t.id];
-    const stPill = { open: '<span class="pill open">進行中</span>', done: '<span class="pill done">✔ 完了</span>', dropped: '<span class="pill dropped">破棄</span>' }[t.status];
+    const stPill = { open: '<span class="pill open">進行中</span>', done: '<span class="pill done">完了</span>', dropped: '<span class="pill dropped">破棄</span>' }[t.status];
     let tl = '';
     if (!logs) tl = '<div class="empty">読み込み中…</div>';
-    else if (!logs.length) tl = '<div class="empty">まだ進捗はありません</div>';
+    else if (!logs.length) tl = '<div class="empty">履歴はありません</div>';
     else {
         let last = '';
         tl = logs.map(l => {
-            const dstr = l.log_date !== last ? fmtMD(l.log_date) : ''; last = l.log_date;
+            const dstr = l.log_date !== last ? fmtM(l.log_date) : ''; last = l.log_date;
             return `<div class="tl"><div class="tl-d">${dstr}</div><div class="tl-b"><span class="k k-${l.kind}">${KIND[l.kind] || l.kind}</span><span class="nm">${esc(memName(l.member_id))}</span>${l.body ? `<div class="tx">${esc(l.body)}</div>` : ''}</div></div>`;
         }).join('');
     }
     const actions = t.status === 'open' ? `
-        <div class="card"><label class="l" style="margin-top:0" for="noteText">進捗メモ</label>
-          <textarea id="noteText" class="inp" placeholder="やったこと・結果・次にやること"></textarea>
-          <label class="l" for="noteDate">日付</label><input class="inp" type="date" id="noteDate" value="${today()}">
-          <div style="height:12px"></div><button class="btn" data-act="addNote">進捗を記録</button></div>
-        <div class="row2"><button class="btn ok" data-act="finish" data-kind="done">✔ 完了にする</button><button class="btn ghost bad" data-act="finish" data-kind="drop">破棄する</button></div>`
-        : `<button class="btn ghost" data-act="reopen">もう一度「進行中」にする</button>`;
-    return sheetHead('タスク', `<button class="icon-btn" data-act="editTask" data-id="${t.id}" aria-label="編集">✏️</button>`) + `<div class="sheet-body">
-        <div class="card"><div class="tk-title">${esc(t.title)}</div>
-          <div class="meta" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">${stPill}<span class="pill ${t.status === 'open' ? di.cls : 'none'}">${t.status === 'open' ? esc(di.txt) : (t.due_date ? '期限 ' + fmtMD(t.due_date) : '期限なし')}</span></div>
-          <div class="kv"><span>担当</span><b>${esc(memName(t.assignee_id))}</b></div>
-          <div class="kv"><span>頼んだ人</span><b>${esc(memName(t.created_by))}</b></div>
-          <div class="kv"><span>作成</span><b>${fmtMD(isoDate(t.created_at))}</b></div>
-          ${t.detail ? `<div class="detail">${esc(t.detail)}</div>` : ''}</div>
+        <div class="card" style="margin-top:12px"><textarea id="noteText" class="inp" rows="2" placeholder="進捗メモ（やったこと・結果・次にやること）"></textarea>
+          <div class="comp-row"><input class="inp" type="date" id="noteDate" value="${today()}"><button class="btn" data-act="addNote">記録</button></div></div>
+        <div class="row2" style="margin-top:0"><button class="btn ok" data-act="finish" data-kind="done">完了にする</button><button class="btn ghost bad" data-act="finish" data-kind="drop">破棄</button></div>`
+        : `<button class="btn ghost" style="margin-top:12px" data-act="reopen">進行中に戻す</button>`;
+    return sheetHead('タスク', `<button class="icon-btn" data-act="editTask" data-id="${t.id}" aria-label="編集">${svg('edit', 20)}</button>`) + `<div class="sheet-body">
+        <div class="dt-t">${esc(t.title)}</div>
+        <div class="dt-tags">${stPill}${t.status === 'open' && t.due_date ? `<span class="pill ${di.cls}">${esc(dueText(t))}</span>` : ''}</div>
+        <div class="list">
+          <div class="prow"><span>担当</span><b>${esc(memName(t.assignee_id))}</b></div>
+          <div class="prow"><span>期限</span><b>${t.due_date ? fmtMD(t.due_date) : 'なし'}</b></div>
+          <div class="prow"><span>依頼</span><b>${esc(memName(t.created_by))}</b></div>
+          <div class="prow"><span>作成</span><b>${fmtMD(isoDate(t.created_at))}</b></div></div>
+        ${t.detail ? `<div class="detail">${esc(t.detail)}</div>` : ''}
         ${actions}
-        <h3 class="sec">きろく</h3><div class="card" style="padding-top:4px;padding-bottom:4px">${tl}</div></div>`;
+        <div class="gh">履歴${logs ? `<span class="n">${logs.length}</span>` : ''}</div><div class="list">${tl}</div></div>`;
 }
 async function openTask(id){
     if (!S.tasks.find(t => t.id === id)) return;
@@ -833,9 +914,9 @@ async function finish(kind){
     const t = curTask(); if (!t) return;
     const isDone = kind === 'done';
     const r = await askBox({
-        title: isDone ? '✔ タスクを完了にする' : '🗑 タスクを破棄する',
+        title: isDone ? 'タスクを完了にする' : 'タスクを破棄',
         desc: t.title, placeholder: isDone ? '結果・ひとこと（任意）' : '破棄する理由（任意）',
-        ok: isDone ? '完了にする' : '破棄する', danger: !isDone, date: today(), dateLabel: isDone ? '完了した日' : '破棄した日'
+        ok: isDone ? '完了にする' : '破棄', danger: !isDone, date: today(), dateLabel: isDone ? '完了した日' : '破棄した日'
     });
     if (!r) return;
     const prev = { ...t };
@@ -863,19 +944,17 @@ function sheetForm(top){
     const t = top.id ? S.tasks.find(x => x.id === top.id) : null;
     const v = t || { title: '', detail: '', assignee_id: top.assignee || S.me.id, due_date: '' };
     const opts = S.members.filter(m => !m.is_hidden || m.id === v.assignee_id).map(m => `<option value="${m.id}" ${m.id === v.assignee_id ? 'selected' : ''}>${esc(m.name)}${m.id === S.me.id ? '（自分）' : ''}${m.is_hidden ? '（非表示）' : ''}</option>`).join('');
-    return sheetHead(t ? 'タスクを編集' : '新しいタスク') + `<div class="sheet-body">
+    return sheetHead(t ? 'タスク編集' : '新規タスク') + `<div class="sheet-body">
         <label class="l" style="margin-top:0" for="fTitle">タスク名</label>
-        <input id="fTitle" class="inp" maxlength="80" placeholder="例：ラインセンサーの閾値を調整" value="${esc(v.title)}">
-        <label class="l" for="fAssignee">担当する人</label>
-        <select id="fAssignee" class="inp">${opts}</select>
-        <label class="l" for="fDue">期限</label>
-        <input id="fDue" class="inp" type="date" value="${v.due_date || ''}">
+        <input id="fTitle" class="inp" maxlength="80" placeholder="例：実験結果をまとめる" value="${esc(v.title)}">
+        <div class="grid2"><div><label class="l" for="fAssignee">担当</label><select id="fAssignee" class="inp">${opts}</select></div>
+          <div><label class="l" for="fDue">期限</label><input id="fDue" class="inp" type="date" value="${v.due_date || ''}"></div></div>
         <div class="quick"><button data-act="quickDue" data-n="0">今日</button><button data-act="quickDue" data-n="1">明日</button><button data-act="quickDue" data-n="7">1週間後</button><button data-act="quickDue" data-n="-1">期限なし</button></div>
-        <label class="l" for="fDetail">くわしい内容（任意）</label>
-        <textarea id="fDetail" class="inp" placeholder="やり方・目標の数値など">${esc(v.detail)}</textarea>
+        <label class="l" for="fDetail">詳細（任意）</label>
+        <textarea id="fDetail" class="inp" rows="3">${esc(v.detail)}</textarea>
         <p class="err" id="ferr" hidden></p>
-        <div style="height:16px"></div>
-        <button class="btn" data-act="saveTask">${t ? '保存する' : 'タスクを作る'}</button></div>`;
+        <div style="height:14px"></div>
+        <button class="btn" data-act="saveTask">${t ? '保存' : '作成'}</button></div>`;
 }
 async function saveTask(){
     const top = S.sheets[S.sheets.length - 1];
@@ -920,14 +999,13 @@ async function saveTask(){
 function adminListHTML(){
     if (!S.adminList) return '<div class="empty">読み込み中…</div>';
     const teams = [...new Set(S.adminList.map(m => m.team))];
-    return teams.map(t => `<h3 class="sec">${esc(t)}</h3>` + S.adminList.filter(m => m.team === t).map(m => `
-        <div class="card adm ${m.is_hidden ? 'off' : ''}"><div class="adm-n"><b>${esc(m.name)}</b>
-          ${S.me && m.id === S.me.id ? '<span class="pill open">この端末</span>' : ''}${m.is_hidden ? '<span class="pill dropped">非表示中</span>' : ''}</div>
-          <button class="btn sm ${m.is_hidden ? 'ok' : 'ghost bad'}" data-act="admHide" data-id="${m.id}" data-v="${m.is_hidden ? 0 : 1}">${m.is_hidden ? '元に戻す' : '非表示にする'}</button></div>`).join('')).join('')
+    return teams.map(t => `<div class="gh">${esc(t)}</div><div class="list">${S.adminList.filter(m => m.team === t).map(m => `
+        <div class="row static"><span class="av">${initial(m.name)}</span><span class="rb"><span class="rt">${esc(m.name)}${S.me && m.id === S.me.id ? '<span class="tag">この端末</span>' : ''}${m.is_hidden ? '<span class="tag">非表示中</span>' : ''}</span></span>
+          <button class="btn sm ${m.is_hidden ? 'ok' : 'ghost bad'}" data-act="admHide" data-id="${m.id}" data-v="${m.is_hidden ? 0 : 1}">${m.is_hidden ? '元に戻す' : '非表示'}</button></div>`).join('')}</div>`).join('')
         || '<div class="empty">メンバーがいません</div>';
 }
 function sheetAdmin(){
-    return sheetHead('メンバー管理') + `<div class="sheet-body"><p class="hint" style="margin-top:0">非表示にした人は、一覧・連絡・担当の選択に出なくなります。記録は消えません。いつでも元に戻せます。</p>${adminListHTML()}</div>`;
+    return sheetHead('メンバー管理') + `<div class="sheet-body"><p class="hint" style="margin:0 2px 4px">非表示にした人は、一覧・連絡・担当の選択に出なくなります。記録は消えません。いつでも元に戻せます。</p>${adminListHTML()}</div>`;
 }
 async function loadAdminList(){
     try { S.adminList = await API.list('lab_members', { select: 'id,name,team,is_hidden', order: 'team.asc,created_at.asc' }); }
@@ -951,21 +1029,20 @@ async function adminLogin(){
 function adminExit(){ S.admin = null; try { sessionStorage.removeItem('lab_admin'); } catch (e) {} }
 async function openAdmin(){ S.adminList = null; pushSheet({ type: 'admin' }); await loadAdminList(); renderSheet(); }
 function renderAdminShell(){
-    shell(`<h1>メンバー管理</h1><p class="sub">管理者モード</p>${adminListHTML()}
-      <button class="btn gray" style="margin-top:14px" data-act="admBack">もどる</button>`);
+    shell(`${obHead('admBack')}<div class="ob-body"><h2 class="ob-h">メンバー管理</h2>${adminListHTML()}</div>`);
 }
 async function admHide(id, hide){
     const m = (S.adminList || []).find(x => x.id === id); if (!m) return;
     const self = S.me && id === S.me.id;
     if (hide && !(await askBox({ title: `${m.name}さんを非表示にしますか？`, ok: '非表示にする', danger: true, noText: true,
-        desc: '記録は消えません。あとで「元に戻す」で復元できます。' + (self ? ' この端末はログアウトされます。' : '') }))) return;
+        desc: '記録は消えません。あとで「元に戻す」で復元できます。' + (self ? ' この端末はアカウント選択に戻ります。' : '') }))) return;
     try {
         await API.patch('lab_members', id, { is_hidden: !!hide });
         m.is_hidden = !!hide;
         const sm = mem(id); if (sm) sm.is_hidden = !!hide;
         if (S.me) saveCache();
         toast(hide ? '非表示にしました' : '元に戻しました');
-        if (hide && self) { S.sheets = []; doLogout(true); return; }
+        if (hide && self) { S.sheets = []; switchAccount(true); return; }
         if (S.adminShell) renderAdminShell(); else renderSheet();
     } catch (e) {
         if (e.code === '42501' || e.status === 403) { adminExit(); toast('管理者パスワードが確認できません。もう一度入ってください', 4500); if (S.adminShell) renderAdminShell(); return; }
@@ -980,16 +1057,16 @@ function setRead(key, ts){
     if (!m[key] || Date.parse(ts) > Date.parse(m[key])) { m[key] = ts; ls.set('lab_read_' + S.me.id, m); }
     if (S.unread[key]) { S.unread[key] = 0; renderTabbar(); }
 }
-function roomName(key){ return key === 'team' ? `${S.me.team}（全員）` : memName(key); }
+function roomName(key){ return key === 'team' ? S.me.team : memName(key); }
 function sheetRoom(){
     const r = S.room;
     return sheetHead(esc(roomName(r.key))) + `<div class="msgs" id="msgs">${msgsHTML()}</div>
-      <div class="composer"><textarea id="msgText" class="inp" rows="1" placeholder="メッセージを入力"></textarea><button class="btn" data-act="send">送信</button></div>`;
+      <div class="composer"><textarea id="msgText" class="inp" rows="1" placeholder="メッセージ"></textarea><button class="btn" data-act="send">送信</button></div>`;
 }
 function msgsHTML(){
     const r = S.room; if (!r) return '';
     if (!r.loaded) return '<div class="empty">読み込み中…</div>';
-    if (!r.msgs.length) return '<div class="empty">まだメッセージはありません<br><span class="hint">最初の一言を送ってみましょう</span></div>';
+    if (!r.msgs.length) return '<div class="empty"><b>メッセージはありません</b></div>';
     let last = '';
     return r.msgs.map(m => {
         const d = isoDate(m.created_at); let sep = '';
@@ -1088,11 +1165,11 @@ async function checkUnread(){
 function askBox({ title, desc, placeholder, ok = 'OK', danger, date, dateLabel, noText, input }){
     return new Promise(resolve => {
         const m = $('#modal'); m.hidden = false;
-        m.innerHTML = `<div class="dlg"><h2>${esc(title)}</h2>${desc ? `<p class="hint" style="margin:0 0 6px">${esc(desc)}</p>` : ''}
+        m.innerHTML = `<div class="dlg"><h2>${esc(title)}</h2>${desc ? `<p class="hint" style="margin:0 0 4px">${esc(desc)}</p>` : ''}
           ${noText ? '' : input ? `<input id="dlgText" class="inp" type="${input}" autocomplete="off" autocapitalize="off" style="margin-top:10px" placeholder="${esc(placeholder || '')}">`
                                     : `<textarea id="dlgText" class="inp" style="margin-top:10px" placeholder="${esc(placeholder || '')}"></textarea>`}
           ${date ? `<label class="l" for="dlgDate">${esc(dateLabel || '日付')}</label><input id="dlgDate" class="inp" type="date" value="${date}">` : ''}
-          <div class="row2" style="margin-top:18px"><button class="btn gray" id="dlgNo">やめる</button><button class="btn ${danger ? 'bad' : ''}" id="dlgOk">${esc(ok)}</button></div></div>`;
+          <div class="row2" style="margin-top:14px"><button class="btn gray" id="dlgNo">キャンセル</button><button class="btn ${danger ? 'bad' : ''}" id="dlgOk">${esc(ok)}</button></div></div>`;
         const done = v => { m.hidden = true; m.innerHTML = ''; resolve(v); };
         $('#dlgNo').onclick = () => done(null);
         if (input) $('#dlgText').onkeydown = e => { if (e.key === 'Enter') $('#dlgOk').click(); };
@@ -1142,13 +1219,19 @@ document.addEventListener('click', e => {
         case 'admWho': adminLogin().then(async ok => { if (ok) { S.adminShell = true; S.adminList = null; renderAdminShell(); await loadAdminList(); renderAdminShell(); } }); break;
         case 'admBack': S.adminShell = false; adminExit(); enterWho(); break;
         case 'rename': renameMe(); break;
-        case 'logout': doLogout(); break;
+        case 'switchAcc': switchAccount(); break;
+        case 'forgetPw': forgetPassword(); break;
+        case 'regStart': OB.name = ''; OB.team = ''; OB.newTeam = ''; OB.mode = 'select'; renderRegName(); break;
+        case 'obAccounts': renderAccounts(); break;
+        case 'obName': renderRegName(); break;
+        case 'obMode': { const t = $('#rTeam'); if (t) OB.newTeam = t.value; OB.mode = v; renderRegTeam(); break; }
+        case 'obTeam': OB.team = el.dataset.team; renderRegTeam(); break;
         case 'pickMe': { const b = el; enterAs(b.dataset.id); break; }
-        case 'pickTeam': $('#rTeam').value = el.dataset.team; break;
     }
 });
 document.addEventListener('change', e => {
     if (e.target.id === 'memoDate') setMemoDate(e.target.value);
+    if (e.target.id === 'showPw') $('#pw').type = e.target.checked ? 'text' : 'password';
 });
 document.addEventListener('input', e => {
     if (e.target.id === 'msgText') { const t = e.target; t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 130) + 'px'; }
@@ -1170,11 +1253,21 @@ async function renameMe(){
         saveCache(); render(); toast('名前を変えました');
     } catch (e) { handleErr(e); }
 }
-async function doLogout(force){
-    if (!force && !(await askBox({ title: 'ログアウトしますか？', desc: 'この端末の登録を消します。記録はサーバーに残ります。', ok: 'ログアウト', danger: true, noText: true }))) return;
-    ['lab_pass', 'lab_me', 'lab_cache'].forEach(ls.del);
-    S.pass = null; S.me = null; stopTimers(); S.sheets = []; adminExit(); S.adminShell = false;
+function resetSession(){
+    stopTimers(); S.me = null; S.sheets = []; adminExit(); S.adminShell = false;
     $('#sheet').hidden = true; $('#sheet').innerHTML = '';
+}
+/* アカウント切替：パスワードは端末に残す（毎回入力しなくてよい） */
+async function switchAccount(force){
+    if (!force && !(await askBox({ title: 'アカウントを切り替えますか？', desc: 'アカウント選択に戻ります。記録は消えません。', ok: '切り替える', noText: true }))) return;
+    ['lab_me', 'lab_cache'].forEach(ls.del);
+    resetSession();
+    enterWho();
+}
+/* パスワード削除：この端末に保存したパスワードを消す（次回は入力が必要） */
+function forgetPassword(){
+    ['lab_pass', 'lab_me', 'lab_cache'].forEach(ls.del);
+    S.pass = null; resetSession();
     renderLogin();
 }
 
