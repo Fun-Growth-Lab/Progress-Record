@@ -21,6 +21,7 @@
   --ok:#4ade80; --ok-l:rgba(74,222,128,.16);
   --warn:#fbbf24; --warn-l:rgba(251,191,36,.16);
   --bad:#ff8080; --bad-l:rgba(255,90,90,.18); --bad-fill:#d63b40;
+  --purple:#c4b5fd; --purple-l:rgba(196,181,253,.16); --on-ok:#06210f; --dim:#6b7fa8; --shadow:rgba(0,0,0,.55);
   --gray:#9fb0cf; --gray-l:#1d2947;
   --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
   --tab:68px;
@@ -46,7 +47,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 #tabbar button.on{color:var(--pri)}
 #tabbar button.on::before{content:"";position:absolute;top:0;left:22%;right:22%;height:4px;border-radius:0 0 4px 4px;background:var(--pri)}
 .badge{position:absolute;top:6px;left:calc(50% + 6px);min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:var(--bad-fill);color:#fff;font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center}
-.fab{position:absolute;right:16px;bottom:calc(var(--tab) + env(safe-area-inset-bottom) + 16px);height:60px;padding:0 24px;border:0;border-radius:30px;background:var(--pri);color:var(--on-pri);font-size:20px;font-weight:800;box-shadow:0 6px 20px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.08)}
+.fab{position:absolute;right:16px;bottom:calc(var(--tab) + env(safe-area-inset-bottom) + 16px);height:60px;padding:0 24px;border:0;border-radius:30px;background:var(--pri);color:var(--on-pri);font-size:20px;font-weight:800;box-shadow:0 6px 20px var(--shadow)}
 .fab:active{background:var(--pri-d)}
 
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 16px;margin-bottom:12px}
@@ -61,28 +62,28 @@ button{font:inherit;color:inherit;cursor:pointer}
 .chips button.on,.chip.on{background:var(--pri);border-color:var(--pri);color:var(--on-pri)}
 
 .task{display:block;width:100%;text-align:left;border:1px solid var(--line);border-left:8px solid var(--pri);background:var(--card);border-radius:16px;padding:14px 16px;margin-bottom:12px;color:var(--ink)}
-.task.over{border-left-color:var(--bad)} .task.today{border-left-color:var(--warn)} .task.soon{border-left-color:#eab308}
-.task.done{border-left-color:var(--ok)} .task.dropped{border-left-color:#5b6b8f;opacity:.8}
+.task.over{border-left-color:var(--bad)} .task.today{border-left-color:var(--warn)} .task.soon{border-left-color:var(--warn)}
+.task.done{border-left-color:var(--ok)} .task.dropped{border-left-color:var(--dim);opacity:.8}
 .task .tt{font-size:19px;font-weight:800;word-break:break-word}
 .task.dropped .tt{text-decoration:line-through;color:var(--sub)}
 .task .meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;align-items:center}
 .pill{display:inline-flex;align-items:center;gap:4px;min-height:32px;padding:0 12px;border-radius:16px;font-size:15px;font-weight:700;background:var(--gray-l);color:var(--gray)}
-.pill.over{background:var(--bad-l);color:var(--bad)} .pill.today{background:var(--warn-l);color:var(--warn)} .pill.soon{background:rgba(250,204,21,.16);color:#facc15}
+.pill.over{background:var(--bad-l);color:var(--bad)} .pill.today{background:var(--warn-l);color:var(--warn)} .pill.soon{background:var(--warn-l);color:var(--warn)}
 .pill.ok,.pill.open{background:var(--pri-l);color:var(--pri)} .pill.done{background:var(--ok-l);color:var(--ok)} .pill.dropped{background:var(--gray-l);color:var(--gray)}
 .pill.new{background:var(--bad-fill);color:#fff}
-.pill.who{background:rgba(167,139,250,.16);color:#c4b5fd}
+.pill.who{background:var(--purple-l);color:var(--purple)}
 .empty{text-align:center;color:var(--sub);padding:36px 12px;font-size:18px}
 
 label.l{display:block;font-size:16px;font-weight:800;color:var(--sub);margin:14px 0 6px}
 .inp{display:block;width:100%;font:inherit;font-size:18px;padding:13px 14px;border:2px solid var(--line);border-radius:12px;background:var(--field);color:var(--ink);min-height:54px;-webkit-appearance:none;appearance:none}
-.inp::placeholder{color:#6b7fa8}
+.inp::placeholder{color:var(--dim)}
 .inp:focus{outline:none;border-color:var(--pri)}
 textarea.inp{min-height:96px;resize:vertical}
-select.inp{background-image:linear-gradient(45deg,transparent 50%,#9fb0cf 50%),linear-gradient(135deg,#9fb0cf 50%,transparent 50%);background-position:calc(100% - 22px) 50%,calc(100% - 16px) 50%;background-size:6px 6px;background-repeat:no-repeat;padding-right:40px}
+select.inp{background-image:linear-gradient(45deg,transparent 50%,var(--sub) 50%),linear-gradient(135deg,var(--sub) 50%,transparent 50%);background-position:calc(100% - 22px) 50%,calc(100% - 16px) 50%;background-size:6px 6px;background-repeat:no-repeat;padding-right:40px}
 .btn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;min-height:56px;border:0;border-radius:14px;background:var(--pri);color:var(--on-pri);font-size:19px;font-weight:800;padding:0 20px}
 .btn:active{filter:brightness(.9)}
 .btn:disabled{opacity:.5}
-.btn.ok{background:var(--ok);color:#06210f} .btn.bad{background:var(--bad-fill);color:#fff}
+.btn.ok{background:var(--ok);color:var(--on-ok)} .btn.bad{background:var(--bad-fill);color:#fff}
 .btn.ghost{background:transparent;color:var(--pri);border:2px solid var(--pri)}
 .btn.ghost.bad{color:var(--bad);border-color:var(--bad);background:transparent}
 .btn.gray{background:var(--gray-l);color:var(--ink);border:1px solid var(--line)}
@@ -110,7 +111,7 @@ h3.sec{font-size:18px;margin:20px 4px 8px;color:var(--sub)}
 .tl-b .tx{white-space:pre-wrap;word-break:break-word;margin-top:2px}
 .k{display:inline-block;padding:1px 10px;border-radius:10px;font-size:14px;font-weight:800;margin-right:6px}
 .k-note{background:var(--pri-l);color:var(--pri)} .k-done{background:var(--ok-l);color:var(--ok)} .k-drop{background:var(--gray-l);color:var(--gray)}
-.k-create,.k-reopen,.k-assign,.k-due{background:rgba(167,139,250,.16);color:#c4b5fd}
+.k-create,.k-reopen,.k-assign,.k-due{background:var(--purple-l);color:var(--purple)}
 .k-memo{background:var(--warn-l);color:var(--warn)}
 
 /* memo */
@@ -142,16 +143,27 @@ h3.sec{font-size:18px;margin:20px 4px 8px;color:var(--sub)}
 .composer .btn{width:auto;min-width:88px;min-height:52px}
 
 /* theme picker */
-.swatches{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px}
-.swatch{display:flex;flex-direction:column;align-items:center;gap:6px;min-height:84px;padding:10px 4px;border:1.5px solid var(--line);border-radius:14px;background:var(--field);font-size:15px;font-weight:700;color:var(--ink)}
-.swatch i{display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:18px;color:#06121f;font-size:20px;font-style:normal;font-weight:800}
-.swatch.on{border-color:var(--pri);box-shadow:inset 0 0 0 1px var(--pri)}
+.themes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:10px}
+.theme{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-height:112px;padding:12px;border:2px solid;border-radius:14px;text-align:left}
+.theme.on{border-width:4px;padding:10px}
+.theme .tn{font-size:17px;font-weight:800}
+.theme .ts{font-size:13px;line-height:1.3}
+.theme .dots{display:flex;gap:6px;margin-top:auto;padding-top:8px}
+.theme .dots i{width:18px;height:18px;border-radius:9px;border:1px solid rgba(128,128,128,.45)}
+
+/* admin */
+.adm{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.adm .adm-n{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:18px}
+.adm.off{opacity:.8}
+
+/* 明るいテーマ：iPhoneのステータスバー（白文字）が読めるよう、ノッチ部分だけ暗くする */
+:root[data-scheme="light"]::before{content:"";position:fixed;top:0;left:0;right:0;height:env(safe-area-inset-top);background:#0b1120;z-index:200}
 
 /* modal / toast */
 #modal{position:fixed;inset:0;z-index:90;background:rgba(2,6,16,.68);display:flex;align-items:flex-end;justify-content:center}
 .dlg{width:100%;max-width:640px;background:var(--card2);border:1px solid var(--line);border-radius:24px 24px 0 0;padding:20px 18px calc(20px + env(safe-area-inset-bottom));max-height:92vh;overflow-y:auto}
 .dlg h2{margin:0 0 4px;font-size:22px}
-#toast{position:fixed;left:50%;width:max-content;bottom:calc(var(--tab) + env(safe-area-inset-bottom) + 90px);transform:translateX(-50%);z-index:100;background:var(--card2);color:var(--ink);border:1px solid var(--pri);font-weight:700;padding:12px 20px;border-radius:24px;max-width:88vw;text-align:center;box-shadow:0 6px 18px rgba(0,0,0,.5)}
+#toast{position:fixed;left:50%;width:max-content;bottom:calc(var(--tab) + env(safe-area-inset-bottom) + 90px);transform:translateX(-50%);z-index:100;background:var(--card2);color:var(--ink);border:1px solid var(--pri);font-weight:700;padding:12px 20px;border-radius:24px;max-width:88vw;text-align:center;box-shadow:0 6px 18px var(--shadow)}
 
 /* login */
 .center{min-height:100vh;min-height:100dvh;max-width:480px;margin:0 auto;padding:calc(28px + env(safe-area-inset-top)) 20px 30px;display:flex;flex-direction:column;justify-content:center}
@@ -181,22 +193,31 @@ const CONFIG = {
 };
 const CONFIGURED = /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(CONFIG.url) && !/YOUR/.test(CONFIG.url + CONFIG.key);
 
-/* ---------- テーマカラー（端末ごとに保存） ---------- */
+/* ---------- テーマ（背景と色のセット。端末ごとに保存） ----------
+   配色は Nord / Catppuccin / Tokyo Night / Dracula / Gruvbox / Solarized の公式パレットが元。
+   文字の読みやすさ（WCAG 4.5:1）を満たすよう、足りない色だけ自動で調整して作ってある。 */
 const THEMES = {
-    cyan:   { n: 'シアン',   c: '#22d3ee' },
-    green:  { n: 'グリーン', c: '#4ade80' },
-    orange: { n: 'オレンジ', c: '#fb923c' },
-    pink:   { n: 'ピンク',   c: '#f472b6' },
-    purple: { n: 'パープル', c: '#a78bfa' },
-    yellow: { n: 'イエロー', c: '#facc15' }
+    lab: {"n": "ラボ", "s": "オリジナル（シアン）", "dark": true, "bg": "#0b1120", "card": "#141d33", "card2": "#1a2542", "field": "#0f1830", "line": "#25345c", "ink": "#e6edf7", "sub": "#9fb0cf", "dim": "#647089", "pri": "#22d3ee", "priD": "#1cadc3", "priL": "rgba(34,211,238,0.16)", "onPri": "#06121f", "ok": "#4ade80", "okL": "rgba(74,222,128,0.16)", "onOk": "#06121f", "warn": "#fbbf24", "warnL": "rgba(251,191,36,0.16)", "bad": "#ff8080", "badL": "rgba(255,128,128,0.16)", "badFill": "#b15858", "purple": "#c4b5fd", "purpleL": "rgba(196,181,253,0.16)", "shadow": "rgba(0,0,0,.55)"},
+    nord: {"n": "ノルド", "s": "Nord・北欧の青", "dark": true, "bg": "#2e3440", "card": "#3b4252", "card2": "#434c5e", "field": "#292e39", "line": "#4c566a", "ink": "#eceff4", "sub": "#d8dee9", "dim": "#949aa5", "pri": "#88c0d0", "priD": "#709dab", "priL": "rgba(136,192,208,0.16)", "onPri": "#06121f", "ok": "#a3be8c", "okL": "rgba(163,190,140,0.16)", "onOk": "#06121f", "warn": "#ebcb8b", "warnL": "rgba(235,203,139,0.16)", "bad": "#daa2a7", "badL": "rgba(218,162,167,0.16)", "badFill": "#916c6f", "purple": "#c5a7bf", "purpleL": "rgba(197,167,191,0.16)", "shadow": "rgba(0,0,0,.55)"},
+    mocha: {"n": "モカ", "s": "Catppuccin Mocha・紫", "dark": true, "bg": "#1e1e2e", "card": "#313244", "card2": "#45475a", "field": "#181825", "line": "#45475a", "ink": "#dde1f4", "sub": "#b0b6ce", "dim": "#76798e", "pri": "#cba6f7", "priD": "#a688cb", "priL": "rgba(203,166,247,0.16)", "onPri": "#06121f", "ok": "#a6e3a1", "okL": "rgba(166,227,161,0.16)", "onOk": "#06121f", "warn": "#f9e2af", "warnL": "rgba(249,226,175,0.16)", "bad": "#f38ba8", "badL": "rgba(243,139,168,0.16)", "badFill": "#a86075", "purple": "#b4befe", "purpleL": "rgba(180,190,254,0.16)", "shadow": "rgba(0,0,0,.55)"},
+    tokyo: {"n": "東京の夜", "s": "Tokyo Night・青", "dark": true, "bg": "#1a1b26", "card": "#24283b", "card2": "#292e42", "field": "#16161e", "line": "#414868", "ink": "#c0caf5", "sub": "#a9b1d6", "dim": "#707590", "pri": "#7aa2f7", "priD": "#6485cb", "priL": "rgba(122,162,247,0.16)", "onPri": "#06121f", "ok": "#9ece6a", "okL": "rgba(158,206,106,0.16)", "onOk": "#06121f", "warn": "#e0af68", "warnL": "rgba(224,175,104,0.16)", "bad": "#f7768e", "badL": "rgba(247,118,142,0.16)", "badFill": "#b35467", "purple": "#bb9af7", "purpleL": "rgba(187,154,247,0.16)", "shadow": "rgba(0,0,0,.55)"},
+    dracula: {"n": "ドラキュラ", "s": "Dracula・ピンク", "dark": true, "bg": "#282a36", "card": "#353747", "card2": "#44475a", "field": "#21222c", "line": "#565a75", "ink": "#f8f8f2", "sub": "#bfc3d9", "dim": "#838698", "pri": "#ff79c6", "priD": "#d163a2", "priL": "rgba(255,121,198,0.16)", "onPri": "#06121f", "ok": "#50fa7b", "okL": "rgba(80,250,123,0.16)", "onOk": "#06121f", "warn": "#ffb86c", "warnL": "rgba(255,184,108,0.16)", "bad": "#ff7575", "badL": "rgba(255,117,117,0.16)", "badFill": "#b85454", "purple": "#bd93f9", "purpleL": "rgba(189,147,249,0.16)", "shadow": "rgba(0,0,0,.55)"},
+    gruvbox: {"n": "グルーヴ", "s": "Gruvbox・レトロなオレンジ", "dark": true, "bg": "#282828", "card": "#3c3836", "card2": "#504945", "field": "#1d2021", "line": "#665c54", "ink": "#f3e4c9", "sub": "#c7baa3", "dim": "#878072", "pri": "#fe8019", "priD": "#d06914", "priL": "rgba(254,128,25,0.16)", "onPri": "#06121f", "ok": "#b8bb26", "okL": "rgba(184,187,38,0.16)", "onOk": "#06121f", "warn": "#fabd2f", "warnL": "rgba(250,189,47,0.16)", "bad": "#fb7b6c", "badL": "rgba(251,123,108,0.16)", "badFill": "#b4584e", "purple": "#d790a3", "purpleL": "rgba(215,144,163,0.16)", "shadow": "rgba(0,0,0,.55)"},
+    latte: {"n": "ラテ", "s": "Catppuccin Latte・明るい青", "dark": false, "bg": "#eff1f5", "card": "#ffffff", "card2": "#e6e9ef", "field": "#eff1f5", "line": "#ccd0da", "ink": "#464961", "sub": "#64677b", "dim": "#9c9eac", "pri": "#1d62eb", "priD": "#1953c8", "priL": "rgba(29,98,235,0.16)", "onPri": "#ffffff", "ok": "#317921", "okL": "rgba(49,121,33,0.16)", "onOk": "#ffffff", "warn": "#945f13", "warnL": "rgba(148,95,19,0.16)", "bad": "#d20f39", "badL": "rgba(210,15,57,0.16)", "badFill": "#d20f39", "purple": "#8839ef", "purpleL": "rgba(136,57,239,0.16)", "shadow": "rgba(30,40,70,.28)"},
+    solar: {"n": "ソラライズド", "s": "Solarized Light・クリーム", "dark": false, "bg": "#fdf6e3", "card": "#f4edd8", "card2": "#e8e0c8", "field": "#fdf6e3", "line": "#d3cbb0", "ink": "#073642", "sub": "#51666c", "dim": "#96a09c", "pri": "#1f6ca5", "priD": "#1a5c8c", "priL": "rgba(31,108,165,0.16)", "onPri": "#ffffff", "ok": "#606e00", "okL": "rgba(96,110,0,0.16)", "onOk": "#ffffff", "warn": "#836400", "warnL": "rgba(131,100,0,0.16)", "bad": "#cb2e2b", "badL": "rgba(203,46,43,0.16)", "badFill": "#cb2e2b", "purple": "#6064ad", "purpleL": "rgba(96,100,173,0.16)", "shadow": "rgba(30,40,70,.28)"}
 };
+const THEME_VARS = { bg: '--bg', card: '--card', card2: '--card2', field: '--field', line: '--line', ink: '--ink', sub: '--sub', dim: '--dim',
+    pri: '--pri', priD: '--pri-d', priL: '--pri-l', onPri: '--on-pri', ok: '--ok', okL: '--ok-l', onOk: '--on-ok',
+    warn: '--warn', warnL: '--warn-l', bad: '--bad', badL: '--bad-l', badFill: '--bad-fill',
+    purple: '--purple', purpleL: '--purple-l', shadow: '--shadow' };
 function applyTheme(id){
-    const t = THEMES[id] || THEMES.cyan;
-    const [r, g, b] = [1, 3, 5].map(i => parseInt(t.c.slice(i, i + 2), 16));
-    const st = document.documentElement.style;
-    st.setProperty('--pri', t.c);
-    st.setProperty('--pri-l', `rgba(${r},${g},${b},.16)`);
-    st.setProperty('--pri-d', `rgb(${Math.round(r * .8)},${Math.round(g * .8)},${Math.round(b * .8)})`);
+    const t = THEMES[id] || THEMES.lab;
+    const root = document.documentElement, st = root.style;
+    for (const k in THEME_VARS) st.setProperty(THEME_VARS[k], t[k]);
+    st.setProperty('--gray', t.sub); st.setProperty('--gray-l', t.card2);
+    st.colorScheme = t.dark ? 'dark' : 'light';
+    root.dataset.scheme = t.dark ? 'dark' : 'light';
+    const m = document.querySelector('meta[name="theme-color"]'); if (m) m.content = t.card;
 }
 
 /* ---------- 小道具 ---------- */
@@ -207,7 +228,7 @@ const ls = {
     set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch (e){} },
     del(k){ try { localStorage.removeItem(k); } catch (e){} }
 };
-applyTheme(ls.get('lab_theme', 'cyan'));
+applyTheme(ls.get('lab_theme', 'lab'));
 const pad = n => String(n).padStart(2, '0');
 const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const today = () => ymd(new Date());
@@ -269,6 +290,7 @@ const API = {
             'apikey': CONFIG.key,
             'Authorization': 'Bearer ' + CONFIG.key,
             'x-lab-pass': S.pass || '',
+            ...(S.admin ? { 'x-lab-admin': S.admin } : {}),
             'Content-Type': 'application/json'
         };
         if (prefer) headers['Prefer'] = prefer;
@@ -309,7 +331,7 @@ const API = {
 
 /* ---------- 状態 ---------- */
 const S = {
-    pass: null, me: null,
+    pass: null, me: null, admin: null, adminList: null, adminShell: false,
     members: [], tasks: [], logs: {},
     tab: 'mine', taskStatus: 'open', teamFilter: 'all',
     memoDate: today(), memoScope: 'me', memoData: { notes: [], logs: [] }, memoLoaded: false,
@@ -318,6 +340,7 @@ const S = {
     unread: {}, newIds: new Set(), booted: false
 };
 const mem = id => S.members.find(m => m.id === id);
+const visMembers = () => S.members.filter(m => !m.is_hidden);
 const memName = id => (mem(id) || {}).name || '（不明）';
 
 /* ---------- 画面共通 ---------- */
@@ -383,11 +406,17 @@ function renderLogin(msg){
 async function enterWho(){
     shell(`<p class="sub" style="margin-top:40vh">読み込み中…</p>`);
     let all;
-    try { all = await API.list('lab_members', { select: 'id,name,team', order: 'team.asc,name.asc' }); }
-    catch (e) { handleErr(e); if (S.pass) renderLogin(errMsg(e)); return; }
+    try {
+        try { all = await API.list('lab_members', { select: 'id,name,team,is_hidden', order: 'team.asc,name.asc' }); }
+        catch (e) {   // 管理者用SQL（is_hidden列）をまだ実行していない場合の保険
+            if (!/is_hidden/.test(e.message || '')) throw e;
+            all = await API.list('lab_members', { select: 'id,name,team', order: 'team.asc,name.asc' });
+        }
+    } catch (e) { handleErr(e); if (S.pass) renderLogin(errMsg(e)); return; }
     renderWho(all);
 }
-function renderWho(all){
+function renderWho(allRows){
+    const all = allRows.filter(m => !m.is_hidden);
     const teams = [...new Set(all.map(m => m.team))];
     const list = all.length ? `<h3 class="sec" style="margin-top:0">すでに登録した人はここから</h3>
         <div class="who-list">${all.map(m => `<button data-act="pickMe" data-id="${m.id}"><span>${esc(m.name)}</span><small>${esc(m.team)}</small></button>`).join('')}</div>
@@ -403,7 +432,8 @@ function renderWho(all){
       <p class="err" id="rerr" hidden></p>
       <div style="height:14px"></div>
       <button class="btn" id="regBtn">登録して始める</button>
-      <button class="btn gray" style="margin-top:12px" data-act="logout">パスワードを入れ直す</button>`);
+      <button class="btn gray" style="margin-top:12px" data-act="logout">パスワードを入れ直す</button>
+      <button class="btn gray sm" style="margin:18px auto 0" data-act="admWho">管理者モード</button>`);
     $('#regBtn').onclick = async () => {
         const name = $('#rName').value.trim(), team = $('#rTeam').value.trim();
         const er = $('#rerr');
@@ -415,7 +445,7 @@ function renderWho(all){
             setMe(row);
         } catch (e) {
             btn.disabled = false;
-            er.textContent = (e.status === 409 || e.code === '23505') ? '同じ名前の人がそのチームにいます。上の一覧から選んでください' : errMsg(e);
+            er.textContent = (e.status === 409 || e.code === '23505') ? 'その名前はそのチームですでに使われています。一覧から選ぶか、別の名前にしてください' : errMsg(e);
             er.hidden = false;
         }
     };
@@ -532,7 +562,7 @@ function viewTeam(){
     const base = f === 'all' ? S.tasks : S.tasks.filter(t => t.assignee_id === f);
     const list = sortTasks(base.filter(t => t.status === S.taskStatus), S.taskStatus);
     const chips = [`<button data-act="filter" data-v="all" class="${f === 'all' ? 'on' : ''}">全員</button>`]
-        .concat(S.members.map(m => `<button data-act="filter" data-v="${m.id}" class="${f === m.id ? 'on' : ''}">${esc(m.name)}</button>`)).join('');
+        .concat(visMembers().map(m => `<button data-act="filter" data-v="${m.id}" class="${f === m.id ? 'on' : ''}">${esc(m.name)}</button>`)).join('');
     return `<div class="chips">${chips}</div>${segHTML(base)}
         ${list.length ? list.map(t => taskCard(t, true)).join('') : `<div class="empty">${emptyMsg()}</div>`}`;
 }
@@ -603,7 +633,7 @@ async function delMemo(id){
 
 /* ---------- 連絡 ---------- */
 function viewChat(){
-    const others = S.members.filter(m => m.id !== S.me.id);
+    const others = visMembers().filter(m => m.id !== S.me.id);
     const un = k => S.unread[k] ? `<span class="un">${S.unread[k]}</span>` : '';
     return `<button class="room" data-act="openRoom" data-key="team"><span class="av">👥</span><span class="nm">${esc(S.me.team)}（全員）</span>${un('team')}</button>
       <h3 class="sec">個人あて</h3>
@@ -612,12 +642,14 @@ function viewChat(){
 
 /* ---------- その他（ダウンロードなど） ---------- */
 function viewMore(){
-    const d = S.dl; const cur = ls.get('lab_theme', 'cyan');
+    const d = S.dl; const cur = THEMES[ls.get('lab_theme', 'lab')] ? ls.get('lab_theme', 'lab') : 'lab';
     return `<div class="card"><div class="kv"><span>名前</span><b>${esc(S.me.name)}</b></div><div class="kv"><span>チーム</span><b>${esc(S.me.team)}</b></div>
         <button class="btn gray sm" style="margin-top:8px" data-act="rename">名前を変える</button></div>
-      <div class="card"><h3 class="sec" style="margin:0 0 4px">🎨 テーマカラー</h3>
-        <p class="hint" style="margin:0">この端末での色を選べます。</p>
-        <div class="swatches">${Object.entries(THEMES).map(([id, t]) => `<button class="swatch ${cur === id ? 'on' : ''}" data-act="theme" data-v="${id}"><i style="background:${t.c}">${cur === id ? '✓' : ''}</i>${t.n}</button>`).join('')}</div></div>
+      <div class="card"><h3 class="sec" style="margin:0 0 4px">🎨 テーマ（背景と色のセット）</h3>
+        <p class="hint" style="margin:0">この端末での見た目を選べます。</p>
+        <div class="themes">${Object.entries(THEMES).map(([id, t]) => `<button class="theme ${cur === id ? 'on' : ''}" data-act="theme" data-v="${id}" style="background:${t.bg};color:${t.ink};border-color:${cur === id ? t.pri : t.line}">
+          <span class="tn">${cur === id ? '✓ ' : ''}${esc(t.n)}</span><span class="ts" style="color:${t.sub}">${esc(t.s)}</span>
+          <span class="dots">${[t.card, t.pri, t.ok, t.warn, t.bad].map(c => `<i style="background:${c}"></i>`).join('')}</span></button>`).join('')}</div></div>
       <div class="card"><h3 class="sec" style="margin:0 0 4px">📥 きろくをダウンロード（CSV）</h3>
         <p class="hint" style="margin:0 0 4px">進捗メモ・完了・破棄・今日のメモを、日付つきで1つの表にします。Excelで開けます。</p>
         <label class="l" for="dlFrom">はじめの日</label><input class="inp" type="date" id="dlFrom" value="${d.from}">
@@ -626,6 +658,10 @@ function viewMore(){
         <button class="btn" data-act="download">ダウンロード</button></div>
       <div class="card"><h3 class="sec" style="margin:0 0 4px">📱 ホーム画面に追加</h3>
         <p class="hint" style="margin:0"><b>iPhone</b>：Safariで開き、共有ボタン → 「ホーム画面に追加」<br><b>Android</b>：Chromeのメニュー → 「ホーム画面に追加」</p></div>
+      <div class="card"><h3 class="sec" style="margin:0 0 4px">🛠 管理者モード</h3>
+        <p class="hint" style="margin:0 0 10px">制作者用です。メンバーの非表示と、元に戻す操作ができます。</p>
+        ${S.admin ? `<div class="row2" style="margin-top:0"><button class="btn sm" data-act="admOpen">メンバー管理</button><button class="btn gray sm" data-act="admExit">終了</button></div>`
+                  : `<button class="btn gray sm" data-act="admLogin">管理者モードに入る</button>`}</div>
       <button class="btn ghost bad" data-act="logout">ログアウト（この端末の登録を消す）</button>`;
 }
 function csvCell(v){
@@ -693,6 +729,7 @@ async function refreshAll(){
             if ((await API.rpc('lab_check')) !== true) throw Object.assign(new Error('パスワードが確認できません'), { status: 401 });
             toast('登録が見つかりません。登録し直してください', 4000); doLogout(true); return;
         }
+        if (mem(S.me.id).is_hidden) { toast('このアカウントは使えなくなっています。管理者に連絡してください', 5000); doLogout(true); return; }
         saveCache(); updateNew();
         softRender();
         if (S.tab === 'memo') loadMemo();
@@ -730,6 +767,7 @@ function renderSheet(){
     if (top.type === 'task') inner = sheetTask(top);
     else if (top.type === 'form') inner = sheetForm(top);
     else if (top.type === 'room') inner = sheetRoom();
+    else if (top.type === 'admin') inner = sheetAdmin();
     el.innerHTML = `<div class="sheet-in">${inner}</div>`;
     Object.entries(keep).forEach(([id, v]) => { const x = el.querySelector('#' + id); if (x && v !== '' && x.tagName !== 'SELECT') x.value = v; });
     if (top.type === 'room') { const m = $('#msgs'); if (m) m.scrollTop = m.scrollHeight; }
@@ -823,7 +861,7 @@ async function reopen(){
 function sheetForm(top){
     const t = top.id ? S.tasks.find(x => x.id === top.id) : null;
     const v = t || { title: '', detail: '', assignee_id: top.assignee || S.me.id, due_date: '' };
-    const opts = S.members.map(m => `<option value="${m.id}" ${m.id === v.assignee_id ? 'selected' : ''}>${esc(m.name)}${m.id === S.me.id ? '（自分）' : ''}</option>`).join('');
+    const opts = S.members.filter(m => !m.is_hidden || m.id === v.assignee_id).map(m => `<option value="${m.id}" ${m.id === v.assignee_id ? 'selected' : ''}>${esc(m.name)}${m.id === S.me.id ? '（自分）' : ''}${m.is_hidden ? '（非表示）' : ''}</option>`).join('');
     return sheetHead(t ? 'タスクを編集' : '新しいタスク') + `<div class="sheet-body">
         <label class="l" style="margin-top:0" for="fTitle">タスク名</label>
         <input id="fTitle" class="inp" maxlength="80" placeholder="例：ラインセンサーの閾値を調整" value="${esc(v.title)}">
@@ -875,6 +913,63 @@ async function saveTask(){
         }
         closeSheet();
     } catch (e) { btn.disabled = false; handleErr(e); }
+}
+
+/* ---------- 管理者モード（メンバーの非表示・復元） ---------- */
+function adminListHTML(){
+    if (!S.adminList) return '<div class="empty">読み込み中…</div>';
+    const teams = [...new Set(S.adminList.map(m => m.team))];
+    return teams.map(t => `<h3 class="sec">${esc(t)}</h3>` + S.adminList.filter(m => m.team === t).map(m => `
+        <div class="card adm ${m.is_hidden ? 'off' : ''}"><div class="adm-n"><b>${esc(m.name)}</b>
+          ${S.me && m.id === S.me.id ? '<span class="pill open">この端末</span>' : ''}${m.is_hidden ? '<span class="pill dropped">非表示中</span>' : ''}</div>
+          <button class="btn sm ${m.is_hidden ? 'ok' : 'ghost bad'}" data-act="admHide" data-id="${m.id}" data-v="${m.is_hidden ? 0 : 1}">${m.is_hidden ? '元に戻す' : '非表示にする'}</button></div>`).join('')).join('')
+        || '<div class="empty">メンバーがいません</div>';
+}
+function sheetAdmin(){
+    return sheetHead('メンバー管理') + `<div class="sheet-body"><p class="hint" style="margin-top:0">非表示にした人は、一覧・連絡・担当の選択に出なくなります。記録は消えません。いつでも元に戻せます。</p>${adminListHTML()}</div>`;
+}
+async function loadAdminList(){
+    try { S.adminList = await API.list('lab_members', { select: 'id,name,team,is_hidden', order: 'team.asc,created_at.asc' }); }
+    catch (e) { S.adminList = []; toast(/is_hidden/.test(e.message || '') ? '管理者用のSQL（supabase-admin.sql）がまだ実行されていません' : errMsg(e), 5000); }
+}
+async function adminLogin(){
+    const r = await askBox({ title: '管理者モード', desc: '管理者パスワードを入れてください', input: 'password', placeholder: '管理者パスワード', ok: '入る' });
+    if (!r || !r.text) return false;
+    const prev = S.admin;
+    S.admin = await sha256hex(r.text.normalize('NFKC').trim());
+    try {
+        if ((await API.rpc('lab_admin_check')) !== true) { S.admin = prev; toast('管理者パスワードがちがいます'); return false; }
+    } catch (e) {
+        S.admin = prev;
+        toast(e.status === 404 ? '管理者用のSQL（supabase-admin.sql）がまだ実行されていません' : errMsg(e), 5000);
+        return false;
+    }
+    try { sessionStorage.setItem('lab_admin', S.admin); } catch (e) {}
+    return true;
+}
+function adminExit(){ S.admin = null; try { sessionStorage.removeItem('lab_admin'); } catch (e) {} }
+async function openAdmin(){ S.adminList = null; pushSheet({ type: 'admin' }); await loadAdminList(); renderSheet(); }
+function renderAdminShell(){
+    shell(`<h1>メンバー管理</h1><p class="sub">管理者モード</p>${adminListHTML()}
+      <button class="btn gray" style="margin-top:14px" data-act="admBack">もどる</button>`);
+}
+async function admHide(id, hide){
+    const m = (S.adminList || []).find(x => x.id === id); if (!m) return;
+    const self = S.me && id === S.me.id;
+    if (hide && !(await askBox({ title: `${m.name}さんを非表示にしますか？`, ok: '非表示にする', danger: true, noText: true,
+        desc: '記録は消えません。あとで「元に戻す」で復元できます。' + (self ? ' この端末はログアウトされます。' : '') }))) return;
+    try {
+        await API.patch('lab_members', id, { is_hidden: !!hide });
+        m.is_hidden = !!hide;
+        const sm = mem(id); if (sm) sm.is_hidden = !!hide;
+        if (S.me) saveCache();
+        toast(hide ? '非表示にしました' : '元に戻しました');
+        if (hide && self) { S.sheets = []; doLogout(true); return; }
+        if (S.adminShell) renderAdminShell(); else renderSheet();
+    } catch (e) {
+        if (e.code === '42501' || e.status === 403) { adminExit(); toast('管理者パスワードが確認できません。もう一度入ってください', 4500); if (S.adminShell) renderAdminShell(); return; }
+        toast(/is_hidden/.test(e.message || '') ? '管理者用のSQL（supabase-admin.sql）がまだ実行されていません' : errMsg(e), 5000);
+    }
 }
 
 /* ---------- 連絡ルーム ---------- */
@@ -989,15 +1084,17 @@ async function checkUnread(){
 /* ============================================================
    ダイアログ
    ============================================================ */
-function askBox({ title, desc, placeholder, ok = 'OK', danger, date, dateLabel, noText }){
+function askBox({ title, desc, placeholder, ok = 'OK', danger, date, dateLabel, noText, input }){
     return new Promise(resolve => {
         const m = $('#modal'); m.hidden = false;
         m.innerHTML = `<div class="dlg"><h2>${esc(title)}</h2>${desc ? `<p class="hint" style="margin:0 0 6px">${esc(desc)}</p>` : ''}
-          ${noText ? '' : `<textarea id="dlgText" class="inp" style="margin-top:10px" placeholder="${esc(placeholder || '')}"></textarea>`}
+          ${noText ? '' : input ? `<input id="dlgText" class="inp" type="${input}" autocomplete="off" autocapitalize="off" style="margin-top:10px" placeholder="${esc(placeholder || '')}">`
+                                    : `<textarea id="dlgText" class="inp" style="margin-top:10px" placeholder="${esc(placeholder || '')}"></textarea>`}
           ${date ? `<label class="l" for="dlgDate">${esc(dateLabel || '日付')}</label><input id="dlgDate" class="inp" type="date" value="${date}">` : ''}
           <div class="row2" style="margin-top:18px"><button class="btn gray" id="dlgNo">やめる</button><button class="btn ${danger ? 'bad' : ''}" id="dlgOk">${esc(ok)}</button></div></div>`;
         const done = v => { m.hidden = true; m.innerHTML = ''; resolve(v); };
         $('#dlgNo').onclick = () => done(null);
+        if (input) $('#dlgText').onkeydown = e => { if (e.key === 'Enter') $('#dlgOk').click(); };
         $('#dlgOk').onclick = () => done({ text: noText ? '' : $('#dlgText').value.trim(), date: date ? ($('#dlgDate').value || date) : null });
         m.onclick = e => { if (e.target === m) done(null); };
     });
@@ -1037,6 +1134,12 @@ document.addEventListener('click', e => {
         case 'dlScope': S.dl.scope = v; S.dl.from = $('#dlFrom').value || S.dl.from; S.dl.to = $('#dlTo').value || S.dl.to; render(); break;
         case 'download': download(); break;
         case 'theme': ls.set('lab_theme', v); applyTheme(v); render(); break;
+        case 'admLogin': adminLogin().then(ok => { if (ok) { render(); openAdmin(); } }); break;
+        case 'admOpen': openAdmin(); break;
+        case 'admExit': adminExit(); render(); toast('管理者モードを終了しました'); break;
+        case 'admHide': admHide(el.dataset.id, el.dataset.v === '1'); break;
+        case 'admWho': adminLogin().then(async ok => { if (ok) { S.adminShell = true; S.adminList = null; renderAdminShell(); await loadAdminList(); renderAdminShell(); } }); break;
+        case 'admBack': S.adminShell = false; adminExit(); enterWho(); break;
         case 'rename': renameMe(); break;
         case 'logout': doLogout(); break;
         case 'pickMe': { const b = el; enterAs(b.dataset.id); break; }
@@ -1069,8 +1172,8 @@ async function renameMe(){
 async function doLogout(force){
     if (!force && !(await askBox({ title: 'ログアウトしますか？', desc: 'この端末の登録を消します。記録はサーバーに残ります。', ok: 'ログアウト', danger: true, noText: true }))) return;
     ['lab_pass', 'lab_me', 'lab_cache'].forEach(ls.del);
-    S.pass = null; S.me = null; stopTimers(); S.sheets = [];
-    $('#sheet').hidden = true;
+    S.pass = null; S.me = null; stopTimers(); S.sheets = []; adminExit(); S.adminShell = false;
+    $('#sheet').hidden = true; $('#sheet').innerHTML = '';
     renderLogin();
 }
 
@@ -1105,6 +1208,7 @@ if (window.visualViewport) {
     if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => {});
     if (!CONFIGURED) { renderSetupNeeded(); return; }
     S.pass = ls.get('lab_pass'); S.me = ls.get('lab_me');
+    try { S.admin = sessionStorage.getItem('lab_admin'); } catch (e) {}
     if (!S.pass) { renderLogin(); return; }
     if (!S.me) { enterWho(); return; }
     startMain();
