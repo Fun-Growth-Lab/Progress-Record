@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#141d33">
+<meta name="theme-color" content="#f4edd8">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="研究進捗">
@@ -14,15 +14,15 @@
 <title>研究進捗アプリ</title>
 <style>
 :root{
-  color-scheme:dark;
-  --bg:#0b1120; --card:#141d33; --card2:#1a2542; --field:#0f1830;
-  --ink:#e6edf7; --sub:#9fb0cf; --line:#25345c;
-  --pri:#22d3ee; --pri-d:#1aa9be; --pri-l:rgba(34,211,238,.16); --on-pri:#06121f;
-  --ok:#4ade80; --ok-l:rgba(74,222,128,.16);
-  --warn:#fbbf24; --warn-l:rgba(251,191,36,.16);
-  --bad:#ff8080; --bad-l:rgba(255,90,90,.18); --bad-fill:#d63b40;
-  --gray:#9fb0cf; --gray-l:#1d2947;
-  --purple:#c4b5fd; --purple-l:rgba(196,181,253,.16); --on-ok:#06210f; --dim:#6b7fa8; --shadow:rgba(0,0,0,.55);
+  color-scheme:light;
+  --bg:#fdf6e3; --card:#f4edd8; --card2:#e8e0c8; --field:#fdf6e3;
+  --ink:#073642; --sub:#51666c; --line:#d3cbb0;
+  --pri:#1f6ca5; --pri-d:#1a5c8c; --pri-l:rgba(31,108,165,.16); --on-pri:#ffffff;
+  --ok:#606e00; --ok-l:rgba(96,110,0,.16);
+  --warn:#836400; --warn-l:rgba(131,100,0,.16);
+  --bad:#cb2e2b; --bad-l:rgba(203,46,43,.16); --bad-fill:#cb2e2b;
+  --gray:#51666c; --gray-l:#e8e0c8;
+  --purple:#6064ad; --purple-l:rgba(96,100,173,.16); --on-ok:#ffffff; --dim:#96a09c; --shadow:rgba(30,40,70,.28);
   --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
   --tab:54px;
 }
@@ -249,7 +249,7 @@ const THEME_VARS = { bg: '--bg', card: '--card', card2: '--card2', field: '--fie
     warn: '--warn', warnL: '--warn-l', bad: '--bad', badL: '--bad-l', badFill: '--bad-fill',
     purple: '--purple', purpleL: '--purple-l', shadow: '--shadow' };
 function applyTheme(id){
-    const t = THEMES[id] || THEMES.lab;
+    const t = THEMES[id] || THEMES.solar;
     const root = document.documentElement, st = root.style;
     for (const k in THEME_VARS) st.setProperty(THEME_VARS[k], t[k]);
     st.setProperty('--gray', t.sub); st.setProperty('--gray-l', t.card2);
@@ -266,7 +266,7 @@ const ls = {
     set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch (e){} },
     del(k){ try { localStorage.removeItem(k); } catch (e){} }
 };
-applyTheme(ls.get('lab_theme', 'lab'));
+applyTheme(ls.get('lab_theme', 'solar'));
 const pad = n => String(n).padStart(2, '0');
 const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const today = () => ymd(new Date());
@@ -643,12 +643,10 @@ function segHTML(list){
     return `<div class="seg">${b('open', '進行中')}${b('done', '完了')}${b('dropped', '破棄')}</div>`;
 }
 function viewTasks(){
-    let f = S.teamFilter;
-    if (f !== 'all' && f !== 'me' && !visMembers().some(m => m.id === f)) f = S.teamFilter = 'all';
-    const base = f === 'all' ? S.tasks : S.tasks.filter(t => t.assignee_id === (f === 'me' ? S.me.id : f));
-    const chip = (v, label) => `<button data-act="filter" data-v="${v}" class="${f === v ? 'on' : ''}">${label}</button>`;
-    const chips = chip('all', '全員') + chip('me', '自分') + visMembers().filter(m => m.id !== S.me.id).map(m => chip(m.id, esc(m.name))).join('');
-    return `<div class="chips">${chips}</div>${segHTML(base)}${taskListHTML(base.filter(t => t.status === S.taskStatus), true)}`;
+    const f = S.teamFilter === 'me' ? 'me' : 'all';
+    const base = f === 'me' ? S.tasks.filter(t => t.assignee_id === S.me.id) : S.tasks;
+    const scope = `<div class="seg" style="margin-bottom:8px"><button data-act="filter" data-v="me" class="${f === 'me' ? 'on' : ''}">自分</button><button data-act="filter" data-v="all" class="${f === 'all' ? 'on' : ''}">チーム全員</button></div>`;
+    return `${scope}${segHTML(base)}${taskListHTML(base.filter(t => t.status === S.taskStatus), true)}`;
 }
 
 /* ---------- きろく（日付ごと） ---------- */
@@ -726,7 +724,7 @@ function viewChat(){
 
 /* ---------- その他（ダウンロードなど） ---------- */
 function viewMore(){
-    const d = S.dl; const cur = THEMES[ls.get('lab_theme', 'lab')] ? ls.get('lab_theme', 'lab') : 'lab';
+    const d = S.dl; const cur = THEMES[ls.get('lab_theme', 'solar')] ? ls.get('lab_theme', 'solar') : 'solar';
     const chev = svg('chev', 16);
     return `<div class="card acc"><span class="av lg">${initial(S.me.name)}</span><div class="rb"><b>${esc(S.me.name)}</b><span class="t">${esc(S.me.team)}</span></div><button class="btn gray sm" data-act="rename">名前変更</button></div>
       <div class="gh">テーマ</div>
@@ -1195,7 +1193,7 @@ document.addEventListener('click', e => {
         case 'status': S.taskStatus = v; render(); break;
         case 'filter': S.teamFilter = v; render(); break;
         case 'reload': refreshAll(); checkUnread(); if (S.tab === 'memo') loadMemo(); toast('更新しました', 1200); break;
-        case 'newTask': pushSheet({ type: 'form', assignee: S.teamFilter !== 'all' && S.teamFilter !== 'me' ? S.teamFilter : S.me.id }); break;
+        case 'newTask': pushSheet({ type: 'form', assignee: S.me.id }); break;
         case 'editTask': pushSheet({ type: 'form', id: el.dataset.id }); break;
         case 'openTask': openTask(el.dataset.id); break;
         case 'back': closeSheet(); break;
