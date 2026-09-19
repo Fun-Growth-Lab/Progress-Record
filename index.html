@@ -6,12 +6,12 @@
 <meta name="theme-color" content="#141d33">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="研究ノート">
+<meta name="apple-mobile-web-app-title" content="研究進捗">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-192.png" type="image/png">
-<title>ロボ研究ノート</title>
+<title>研究進捗アプリ</title>
 <style>
 :root{
   color-scheme:dark;
@@ -370,14 +370,14 @@ function typing(){
    ============================================================ */
 function shell(inner){ $('#app').innerHTML = `<div class="center">${inner}</div>`; $('#app').style.height = 'auto'; }
 function renderSetupNeeded(){
-    shell(`<img class="logo" src="icon-192.png" alt=""><h1>ロボ研究ノート</h1>
+    shell(`<img class="logo" src="icon-192.png" alt=""><h1>研究進捗アプリ</h1>
       <p class="sub">はじめの設定がまだです</p>
       <div class="card"><p style="margin:0">Supabase の設定が入っていません。<br><b>index.html</b> の先頭近くにある <b>CONFIG</b> に、
       Project URL と publishable key を貼ってください。<br><span class="hint">手順は README.md にあります。</span></p></div>`);
 }
 function renderLogin(msg){
     document.body.dataset.mode = 'login';
-    shell(`<img class="logo" src="icon-192.png" alt=""><h1>ロボ研究ノート</h1>
+    shell(`<img class="logo" src="icon-192.png" alt=""><h1>研究進捗アプリ</h1>
       <p class="sub">パスワードを入れてください</p>
       <label class="l" for="pw">パスワード</label>
       <input id="pw" class="inp" type="password" autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="チームのパスワード">
@@ -433,7 +433,8 @@ function renderWho(allRows){
       <div style="height:14px"></div>
       <button class="btn" id="regBtn">登録して始める</button>
       <button class="btn gray" style="margin-top:12px" data-act="logout">パスワードを入れ直す</button>
-      <button class="btn gray sm" style="margin:18px auto 0" data-act="admWho">管理者モード</button>`);
+      <div class="divider" style="margin-top:26px">— 制作者の方 —</div>
+      <button class="btn gray" data-act="admWho">🛠 管理者モード</button>`);
     $('#regBtn').onclick = async () => {
         const name = $('#rName').value.trim(), team = $('#rTeam').value.trim();
         const er = $('#rerr');

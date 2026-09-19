@@ -1,4 +1,4 @@
-# ロボ研究ノート
+# 研究進捗アプリ
 
 ロボカップチームの研究記録・タスク管理・連絡アプリ（スマホ縦向き用のWebアプリ）。
 構成は Mathgames と同じ：`index.html` 1枚 ＋ Supabase（fetchでREST直接呼び出し）＋ GitHub Pages。

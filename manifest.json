@@ -1,6 +1,6 @@
 {
-  "name": "ロボ研究ノート",
-  "short_name": "研究ノート",
+  "name": "研究進捗アプリ",
+  "short_name": "研究進捗",
   "description": "ロボカップチームの研究記録・タスク管理・連絡アプリ",
   "start_url": "./",
   "scope": "./",
