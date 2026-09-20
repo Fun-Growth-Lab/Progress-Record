@@ -155,6 +155,21 @@ select.inp{background-image:linear-gradient(45deg,transparent 50%,var(--sub) 50%
 .ent .eb{flex:1;min-width:0}
 .ent .eh{font-size:13px;display:flex;align-items:center;flex-wrap:wrap;gap:2px}
 .ent .eh b{font-weight:700;margin-right:4px}
+.ent .eh .acts,.tl-b .eh .acts{margin-left:auto;display:flex}
+.tl-b .eh{display:flex;align-items:center;flex-wrap:wrap;gap:2px}
+.tl-b .eh .nm{margin-right:4px}
+.linkb.del{color:var(--bad)}
+.edtag{font-size:11px;font-weight:600;color:var(--sub);background:var(--card2);border-radius:9px;height:18px;padding:0 7px;margin-right:2px}
+.ctl{display:grid;grid-template-columns:auto 1fr;gap:8px;margin-bottom:2px}
+.ctl .seg{margin-bottom:0}
+.ctl .seg:first-child button{padding:0 14px}
+.gh-day{width:100%;text-align:left;position:sticky;top:0;z-index:3;margin:0 !important;padding:12px 4px 6px;background:var(--bg)}
+.gh-day .today{font-size:11px;font-weight:700;color:var(--pri);background:var(--pri-l);border-radius:9px;padding:0 7px}
+.gh-day .go{margin-left:auto;color:var(--dim)}
+.hist{border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:8px;background:var(--card)}
+.hist .hh{display:flex;flex-wrap:wrap;gap:8px;align-items:baseline;font-size:12px;font-weight:700;color:var(--sub);margin-bottom:2px}
+.hist .hh .by{font-weight:500;color:var(--dim)}
+.hist .tx{white-space:pre-wrap;word-break:break-word;font-size:14px}
 .ent a.tk{cursor:pointer;display:block;margin-top:2px;font-size:14px;font-weight:600;color:var(--pri)}
 
 /* ---- 連絡 ---- */
@@ -372,7 +387,7 @@ const S = {
     pass: null, me: null, admin: null, adminList: null, adminShell: false,
     members: [], tasks: [], logs: {},
     tab: 'tasks', taskStatus: 'open', teamFilter: 'all',
-    memoDate: today(), memoScope: 'me', memoData: { notes: [], logs: [] }, memoLoaded: false,
+    memoDate: today(), memoMode: 'day', memoScope: 'me', memoData: { notes: [], logs: [] }, memoLoaded: false,
     dl: { from: today().slice(0, 8) + '01', to: today(), scope: 'all' },
     sheets: [], room: null, roomTimer: null,
     unread: {}, newIds: new Set(), booted: false
@@ -650,42 +665,69 @@ function viewTasks(){
 }
 
 /* ---------- きろく（日付ごと） ---------- */
+/* 記録の編集ツール（編集・削除・「編集済」）。type は 'note'（メモ）または 'log'（タスクの進捗） */
+const EDITABLE = ['note', 'done', 'drop'];
+function recTools(rec, type){
+    const edited = (rec.edit_history || []).length;
+    const own = rec.member_id === S.me.id;
+    const canEdit = own && (type === 'note' || EDITABLE.includes(rec.kind));
+    return `${edited ? `<button class="edtag" data-act="hist" data-t="${type}" data-id="${rec.id}">編集済</button>` : ''}<span class="acts">${canEdit ? `<button class="linkb" data-act="editRec" data-t="${type}" data-id="${rec.id}">編集</button>` : ''}${type === 'note' && own ? `<button class="linkb del" data-act="delMemo" data-id="${rec.id}">削除</button>` : ''}</span>`;
+}
+const MEMO_SPAN = { day: 1, week: 7, month: 30 };
+/* 選んだ日を「期間の最後の日」として、日=1日・週=7日間・月=30日間 */
+function memoRange(){ const to = S.memoDate; return [addDays(to, -(MEMO_SPAN[S.memoMode] - 1)), to]; }
+function entryHTML(i){
+    const who = `<b>${esc(memName(i.member_id))}</b>`;
+    if (i.type === 'note') return `<div class="ent"><span class="et">${fmtHM(i.at)}</span><div class="eb"><div class="eh"><span class="k k-memo">メモ</span>${who}${recTools(i.rec, 'note')}</div><div class="tx">${esc(i.body)}</div></div></div>`;
+    const t = S.tasks.find(x => x.id === i.task_id);
+    return `<div class="ent"><span class="et">${fmtHM(i.at)}</span><div class="eb"><div class="eh"><span class="k k-${i.kind}">${KIND[i.kind] || i.kind}</span>${who}${recTools(i.rec, 'log')}</div>
+        <a class="tk" data-act="openTask" data-id="${i.task_id}">${t ? esc(t.title) : '（タスク）'}</a>${i.body ? `<div class="tx">${esc(i.body)}</div>` : ''}</div></div>`;
+}
 function viewMemo(){
-    const d = S.memoDate, sc = S.memoScope;
+    const d = S.memoDate, mode = S.memoMode, sc = S.memoScope;
+    const [from, to] = memoRange();
     const { notes, logs } = S.memoData;
     let items = [
-        ...notes.map(n => ({ type: 'note', at: n.created_at, member_id: n.member_id, body: n.body, id: n.id })),
-        ...logs.map(l => ({ type: 'log', at: l.created_at, member_id: l.member_id, body: l.body, kind: l.kind, task_id: l.task_id, id: l.id }))
+        ...notes.map(n => ({ type: 'note', rec: n, date: n.note_date, at: n.created_at, member_id: n.member_id, body: n.body, id: n.id })),
+        ...logs.map(l => ({ type: 'log', rec: l, date: l.log_date, at: l.created_at, member_id: l.member_id, body: l.body, kind: l.kind, task_id: l.task_id, id: l.id }))
     ];
     if (sc === 'me') items = items.filter(i => i.member_id === S.me.id);
     items.sort((a, b) => a.at < b.at ? -1 : 1);
-    const html = items.map(i => {
-        const who = `<b>${esc(memName(i.member_id))}</b>`;
-        if (i.type === 'note') return `<div class="ent"><span class="et">${fmtHM(i.at)}</span><div class="eb"><div class="eh"><span class="k k-memo">メモ</span>${who}
-            ${i.member_id === S.me.id ? `<button class="linkb" style="margin-left:auto;color:var(--bad)" data-act="delMemo" data-id="${i.id}">削除</button>` : ''}</div><div class="tx">${esc(i.body)}</div></div></div>`;
-        const t = S.tasks.find(x => x.id === i.task_id);
-        return `<div class="ent"><span class="et">${fmtHM(i.at)}</span><div class="eb"><div class="eh"><span class="k k-${i.kind}">${KIND[i.kind] || i.kind}</span>${who}</div>
-            <a class="tk" data-act="openTask" data-id="${i.task_id}">${t ? esc(t.title) : '（タスク）'}</a>${i.body ? `<div class="tx">${esc(i.body)}</div>` : ''}</div></div>`;
-    }).join('');
+
+    let listHTML;
+    if (!S.memoLoaded) listHTML = '<div class="empty">読み込み中…</div>';
+    else if (!items.length) listHTML = `<div class="empty"><b>記録はありません</b>${mode === 'day' ? '' : 'この期間'}</div>`;
+    else if (mode === 'day') listHTML = `<div class="gh">${fmtLong(d)}<span class="n">${items.length}件</span></div><div class="list">${items.map(entryHTML).join('')}</div>`;
+    else {   // 週・月：日付ごとの見出し（新しい日が上）、日の中は時刻順
+        const days = [...new Set(items.map(i => i.date))].sort().reverse();
+        listHTML = `<div class="hint" style="margin:6px 4px 0">${items.length}件</div>` + days.map(day => {
+            const its = items.filter(i => i.date === day);
+            return `<button class="gh gh-day" data-act="memoGo" data-d="${day}">${fmtMD(day)}${day === today() ? '<span class="today">今日</span>' : ''}<span class="n">${its.length}件</span><span class="go">${svg('chev', 14)}</span></button>
+                <div class="list">${its.map(entryHTML).join('')}</div>`;
+        }).join('');
+    }
+    const seg = (act, cur, opts) => `<div class="seg">${opts.map(([v, l]) => `<button data-act="${act}" data-v="${v}" class="${cur === v ? 'on' : ''}">${l}</button>`).join('')}</div>`;
     return `<div class="datebar">
-        <button class="icon-btn" data-act="memoShift" data-v="-1" aria-label="前の日">${svg('back', 20)}</button>
+        <button class="icon-btn" data-act="memoShift" data-v="-1" aria-label="前へ">${svg('back', 20)}</button>
         <input class="inp" type="date" id="memoDate" value="${d}">
-        <button class="icon-btn" data-act="memoShift" data-v="1" aria-label="次の日">${svg('chev', 20)}</button></div>
+        <button class="icon-btn" data-act="memoShift" data-v="1" aria-label="次へ">${svg('chev', 20)}</button></div>
+      ${mode !== 'day' ? `<div class="hint" style="text-align:center;margin:-2px 0 6px">${fmtMD(from)} 〜 ${fmtMD(to)}</div>` : ''}
       ${d !== today() ? `<div style="text-align:center;margin:-4px 0 6px"><button class="linkb" data-act="memoToday">今日にもどる</button></div>` : ''}
-      <div class="card"><textarea id="memoText" class="inp" rows="2" placeholder="メモ（やったこと・結果・気づき）"></textarea>
-        <div style="height:8px"></div><button class="btn" data-act="addMemo">記録する</button></div>
-      <div class="seg"><button data-act="memoScope" data-v="me" class="${sc === 'me' ? 'on' : ''}">自分</button><button data-act="memoScope" data-v="all" class="${sc === 'all' ? 'on' : ''}">チーム全員</button></div>
-      ${!S.memoLoaded ? '<div class="empty">読み込み中…</div>' : html ? `<div class="gh">${fmtLong(d)}<span class="n">${items.length}</span></div><div class="list">${html}</div>` : '<div class="empty"><b>記録はありません</b></div>'}`;
+      ${mode === 'day' ? `<div class="card"><textarea id="memoText" class="inp" rows="2" placeholder="メモ（やったこと・結果・気づき）"></textarea>
+        <div style="height:8px"></div><button class="btn" data-act="addMemo">記録する</button></div>` : ''}
+      <div class="ctl">${seg('memoMode', mode, [['day', '日'], ['week', '週'], ['month', '月']])}${seg('memoScope', sc, [['me', '自分'], ['all', 'チーム全員']])}</div>
+      ${listHTML}`;
 }
 const KIND = { create: '作成', note: '進捗', done: '完了', drop: '破棄', reopen: '再開', assign: '担当変更', due: '期限変更' };
 async function loadMemo(){
-    const d = S.memoDate;
+    const [from, to] = memoRange(); const key = from + '|' + to;
+    const team = 'eq.' + S.me.team;
     try {
         const [notes, logs] = await Promise.all([
-            API.list('lab_notes', { team: 'eq.' + S.me.team, note_date: 'eq.' + d, order: 'created_at.asc' }),
-            API.list('lab_logs', { team: 'eq.' + S.me.team, log_date: 'eq.' + d, order: 'created_at.asc' })
+            API.all('lab_notes', { team, and: `(note_date.gte.${from},note_date.lte.${to})`, order: 'created_at.asc' }),
+            API.all('lab_logs', { team, and: `(log_date.gte.${from},log_date.lte.${to})`, order: 'created_at.asc' })
         ]);
-        if (d !== S.memoDate) return;
+        const [f2, t2] = memoRange(); if (key !== f2 + '|' + t2) return;
         S.memoData = { notes, logs }; S.memoLoaded = true;
         if (S.tab === 'memo') softRender();
     } catch (e) { handleErr(e, true); }
@@ -693,6 +735,10 @@ async function loadMemo(){
 function setMemoDate(d){
     if (!d) return;
     S.memoDate = d; S.memoLoaded = false; S.memoData = { notes: [], logs: [] };
+    render(); loadMemo();
+}
+function setMemoMode(m){
+    S.memoMode = m; S.memoLoaded = false; S.memoData = { notes: [], logs: [] };
     render(); loadMemo();
 }
 async function addMemo(){
@@ -710,6 +756,47 @@ async function delMemo(id){
     const keep = S.memoData.notes;
     S.memoData.notes = keep.filter(n => n.id !== id); render();
     try { await API.del('lab_notes', id); } catch (e) { S.memoData.notes = keep; render(); handleErr(e); }
+}
+
+/* ---------- 記録の編集（変更前の内容は履歴に残す） ---------- */
+const recLists = type => type === 'note' ? [S.memoData.notes] : [S.memoData.logs, ...Object.values(S.logs)];
+function findRec(type, id){ for (const l of recLists(type)) { const r = l.find(x => x.id === id); if (r) return r; } return null; }
+function applyRec(type, id, patch){ recLists(type).forEach(l => l.forEach(r => { if (r.id === id) Object.assign(r, patch); })); }
+async function editRec(type, id){
+    const rec = findRec(type, id); if (!rec) return;
+    const dk = type === 'note' ? 'note_date' : 'log_date';
+    const r = await askBox({ title: '記録を編集', desc: '変更前の内容は履歴に残ります。', text: rec.body, required: type === 'note', placeholder: '内容', date: rec[dk], dateLabel: '日付', ok: '保存' });
+    if (!r) return;
+    if (r.text === rec.body && r.date === rec[dk]) return;
+    const hist = [...(rec.edit_history || []), { at: new Date().toISOString(), by: S.me.id, body: rec.body, date: rec[dk] }];
+    const table = type === 'note' ? 'lab_notes' : 'lab_logs';
+    const patch = { body: r.text, [dk]: r.date, edit_history: hist };
+    let noHist = false;
+    try {
+        try { await API.patch(table, id, patch); }
+        catch (e) {   // 履歴用のSQL（edit_history列）を未実行でも、編集そのものはできるようにする
+            if (!/edit_history/.test(e.message || '')) throw e;
+            delete patch.edit_history; await API.patch(table, id, patch);
+            noHist = true; toast('保存しました（履歴用のSQLが未実行のため、変更前の内容は残りません）', 6000);
+        }
+    } catch (e) { handleErr(e); return; }
+    applyRec(type, id, patch);
+    Object.values(S.logs).forEach(l => l.sort((a, b) => a.log_date < b.log_date ? 1 : a.log_date > b.log_date ? -1 : (a.created_at < b.created_at ? 1 : -1)));
+    if (S.sheets.length) renderSheet(); else render();
+    loadMemo();
+    if (!noHist) toast('保存しました');
+}
+function showHistory(type, id){
+    const rec = findRec(type, id); if (!rec) return;
+    const dk = type === 'note' ? 'note_date' : 'log_date';
+    const hist = [...(rec.edit_history || [])].reverse();
+    const m = $('#modal'); m.hidden = false;
+    m.innerHTML = `<div class="dlg"><h2>編集履歴</h2><p class="hint" style="margin:0 0 8px">変更前の内容が残っています。</p>
+      <div class="hist"><div class="hh">現在<span>${fmtMD(rec[dk])}</span></div><div class="tx">${esc(rec.body) || '（内容なし）'}</div></div>
+      ${hist.map(h => `<div class="hist"><div class="hh">変更前<span>${fmtMD(h.date)}</span><span class="by">${fmtMD(isoDate(h.at))} ${fmtHM(h.at)} ${esc(memName(h.by))}が変更</span></div><div class="tx">${esc(h.body) || '（内容なし）'}</div></div>`).join('')}
+      <div style="height:12px"></div><button class="btn gray" id="histClose">閉じる</button></div>`;
+    const close = () => { m.hidden = true; m.innerHTML = ''; };
+    $('#histClose').onclick = close; m.onclick = e => { if (e.target === m) close(); };
 }
 
 /* ---------- 連絡 ---------- */
@@ -766,14 +853,14 @@ async function download(){
         const tmap = new Map(S.tasks.map(t => [t.id, t]));
         const st = { open: '進行中', done: '完了', dropped: '破棄' };
         let rows = [
-            ...logs.map(l => { const t = tmap.get(l.task_id) || {}; return { date: l.log_date, at: l.created_at, kind: KIND[l.kind] || l.kind, task: t.title || '', assignee: memName(t.assignee_id), author: memName(l.member_id), body: l.body, due: t.due_date || '', state: st[t.status] || '', authorId: l.member_id, assigneeId: t.assignee_id }; }),
-            ...notes.map(n => ({ date: n.note_date, at: n.created_at, kind: 'メモ', task: '', assignee: '', author: memName(n.member_id), body: n.body, due: '', state: '', authorId: n.member_id, assigneeId: null }))
+            ...logs.map(l => { const t = tmap.get(l.task_id) || {}; return { date: l.log_date, at: l.created_at, kind: KIND[l.kind] || l.kind, task: t.title || '', assignee: memName(t.assignee_id), author: memName(l.member_id), body: l.body, due: t.due_date || '', state: st[t.status] || '', edited: (l.edit_history || []).length > 0, authorId: l.member_id, assigneeId: t.assignee_id }; }),
+            ...notes.map(n => ({ date: n.note_date, at: n.created_at, kind: 'メモ', task: '', assignee: '', author: memName(n.member_id), body: n.body, due: '', state: '', edited: (n.edit_history || []).length > 0, authorId: n.member_id, assigneeId: null }))
         ];
         if (S.dl.scope === 'me') rows = rows.filter(r => r.authorId === S.me.id || r.assigneeId === S.me.id);
         rows.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : (a.at < b.at ? -1 : 1));
-        const head = ['日付', '時刻', '種別', 'タスク', '担当者', '記入者', '内容', '期限', 'タスクの状態'];
+        const head = ['日付', '時刻', '種別', 'タスク', '担当者', '記入者', '内容', '期限', 'タスクの状態', '編集済み'];
         const lines = [head.map(csvCell).join(',')].concat(rows.map(r =>
-            [r.date, fmtHM(r.at), r.kind, r.task, r.assignee, r.author, r.body, r.due, r.state].map(csvCell).join(',')));
+            [r.date, fmtHM(r.at), r.kind, r.task, r.assignee, r.author, r.body, r.due, r.state, r.edited ? '済' : ''].map(csvCell).join(',')));
         const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
@@ -870,7 +957,7 @@ function sheetTask(top){
         let last = '';
         tl = logs.map(l => {
             const dstr = l.log_date !== last ? fmtM(l.log_date) : ''; last = l.log_date;
-            return `<div class="tl"><div class="tl-d">${dstr}</div><div class="tl-b"><span class="k k-${l.kind}">${KIND[l.kind] || l.kind}</span><span class="nm">${esc(memName(l.member_id))}</span>${l.body ? `<div class="tx">${esc(l.body)}</div>` : ''}</div></div>`;
+            return `<div class="tl"><div class="tl-d">${dstr}</div><div class="tl-b"><div class="eh"><span class="k k-${l.kind}">${KIND[l.kind] || l.kind}</span><b class="nm">${esc(memName(l.member_id))}</b>${recTools(l, 'log')}</div>${l.body ? `<div class="tx">${esc(l.body)}</div>` : ''}</div></div>`;
         }).join('');
     }
     const actions = t.status === 'open' ? `
@@ -1162,18 +1249,23 @@ async function checkUnread(){
 /* ============================================================
    ダイアログ
    ============================================================ */
-function askBox({ title, desc, placeholder, ok = 'OK', danger, date, dateLabel, noText, input }){
+function askBox({ title, desc, placeholder, ok = 'OK', danger, date, dateLabel, noText, input, text, required }){
     return new Promise(resolve => {
         const m = $('#modal'); m.hidden = false;
         m.innerHTML = `<div class="dlg"><h2>${esc(title)}</h2>${desc ? `<p class="hint" style="margin:0 0 4px">${esc(desc)}</p>` : ''}
           ${noText ? '' : input ? `<input id="dlgText" class="inp" type="${input}" autocomplete="off" autocapitalize="off" style="margin-top:10px" placeholder="${esc(placeholder || '')}">`
-                                    : `<textarea id="dlgText" class="inp" style="margin-top:10px" placeholder="${esc(placeholder || '')}"></textarea>`}
+                                    : `<textarea id="dlgText" class="inp" style="margin-top:10px" placeholder="${esc(placeholder || '')}">${esc(text || '')}</textarea>`}
           ${date ? `<label class="l" for="dlgDate">${esc(dateLabel || '日付')}</label><input id="dlgDate" class="inp" type="date" value="${date}">` : ''}
+          <p class="err" id="dlgErr" hidden>内容を入力してください</p>
           <div class="row2" style="margin-top:14px"><button class="btn gray" id="dlgNo">キャンセル</button><button class="btn ${danger ? 'bad' : ''}" id="dlgOk">${esc(ok)}</button></div></div>`;
         const done = v => { m.hidden = true; m.innerHTML = ''; resolve(v); };
         $('#dlgNo').onclick = () => done(null);
         if (input) $('#dlgText').onkeydown = e => { if (e.key === 'Enter') $('#dlgOk').click(); };
-        $('#dlgOk').onclick = () => done({ text: noText ? '' : $('#dlgText').value.trim(), date: date ? ($('#dlgDate').value || date) : null });
+        $('#dlgOk').onclick = () => {
+            const v = noText ? '' : $('#dlgText').value.trim();
+            if (required && !v) { $('#dlgErr').hidden = false; return; }
+            done({ text: v, date: date ? ($('#dlgDate').value || date) : null });
+        };
         m.onclick = e => { if (e.target === m) done(null); };
     });
 }
@@ -1202,7 +1294,11 @@ document.addEventListener('click', e => {
         case 'addNote': addNote(); break;
         case 'finish': finish(el.dataset.kind); break;
         case 'reopen': reopen(); break;
-        case 'memoShift': setMemoDate(addDays(S.memoDate, +v)); break;
+        case 'memoShift': setMemoDate(addDays(S.memoDate, +v * MEMO_SPAN[S.memoMode])); break;
+        case 'memoMode': setMemoMode(v); break;
+        case 'memoGo': S.memoMode = 'day'; setMemoDate(el.dataset.d); $('#main').scrollTop = 0; break;
+        case 'editRec': editRec(el.dataset.t, el.dataset.id); break;
+        case 'hist': showHistory(el.dataset.t, el.dataset.id); break;
         case 'memoToday': setMemoDate(today()); break;
         case 'memoScope': S.memoScope = v; render(); break;
         case 'addMemo': addMemo(); break;
