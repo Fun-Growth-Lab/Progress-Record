@@ -875,6 +875,21 @@ function visEvents(){
     if (v) return S.events.filter(e => e.team === (v === '__none__' ? '' : v));
     return S.events.filter(e => S.teamNames.includes(e.team));
 }
+/* 管理者の「全チーム」：チームごとに作られた同じ予定（名前・日付・場所・メモが同じ）を、1つにまとめて見せる */
+function groupEvents(list){
+    const m = new Map();
+    list.forEach(e => {
+        const k = [e.title, e.start_date, e.end_date || '', e.place || '', e.detail || ''].join('\u0001');
+        if (!m.has(k)) m.set(k, { ...e, _ids: [], _teams: [] });
+        const g = m.get(k); g._ids.push(e.id); g._teams.push(e.team);
+    });
+    return [...m.values()];
+}
+function evTeamsLabel(e){
+    const t = e._teams || [e.team];
+    if (t.length > 1 && S.teamNames.length && S.teamNames.every(n => t.includes(n))) return '全チーム';
+    return t.length <= 3 ? t.map(teamLabel).join('・') : `${teamLabel(t[0])} ほか${t.length - 1}チーム`;
+}
 function nextEventHTML(){
     if (!S.me.team) return '';
     const x = visEvents().map(e => ({ e, i: evInfo(e) })).filter(o => o.i.st !== 'past')[0];
@@ -883,14 +898,14 @@ function nextEventHTML(){
 }
 function evRow(e, showTeam){
     const i = evInfo(e);
-    const meta = [`<span class="due ${i.st === 'past' ? '' : i.cls}">${evRange(e)}<span class="dl">${i.st === 'past' ? '' : i.label}</span></span>`, e.place ? `<span>${esc(e.place)}</span>` : '', showTeam ? `<span>${esc(teamLabel(e.team))}</span>` : ''].filter(Boolean).join('');
-    return `<button class="row" data-act="evOpen" data-id="${e.id}"><span class="dot ${i.cls === 'ok' ? '' : i.cls}"></span>
+    const meta = [`<span class="due ${i.st === 'past' ? '' : i.cls}">${evRange(e)}<span class="dl">${i.st === 'past' ? '' : i.label}</span></span>`, e.place ? `<span>${esc(e.place)}</span>` : '', showTeam ? `<span>${esc(evTeamsLabel(e))}</span>` : ''].filter(Boolean).join('');
+    return `<button class="row" data-act="evOpen" data-id="${e.id}" data-ids="${(e._ids || [e.id]).join(',')}"><span class="dot ${i.cls === 'ok' ? '' : i.cls}"></span>
         <span class="rb"><span class="rt">${esc(e.title)}</span><span class="rm">${meta}</span></span>${i.big ? `<span class="evc">${i.big}</span>` : ''}${svg('chev', 16)}</button>`;
 }
 function viewEvents(){
     if (S.evErr) return '<div class="empty"><b>予定を読み込めません</b>予定用のSQL（supabase-events.sql）がまだ実行されていない可能性があります</div>';
     if (!IS_ADMIN() && !S.me.team) return '<div class="empty"><b>チームに参加していません</b>チームに参加すると、チームの予定が見られます</div>';
-    const list = visEvents().map(e => ({ e, i: evInfo(e) }));
+    const list = (IS_ADMIN() && !S.viewTeam ? groupEvents(visEvents()) : visEvents()).map(e => ({ e, i: evInfo(e) }));
     const up = list.filter(o => o.i.st !== 'past').sort((a, b) => a.e.start_date < b.e.start_date ? -1 : a.e.start_date > b.e.start_date ? 1 : 0);
     const past = list.filter(o => o.i.st === 'past').sort((a, b) => (b.e.end_date || b.e.start_date) < (a.e.end_date || a.e.start_date) ? -1 : 1);
     const st = S.evStatus === 'past' ? 'past' : 'up';
@@ -921,7 +936,9 @@ function sheetEvent(top){
     if (IS_ADMIN() && !e && !top.sel) top.sel = new Set(tl);   // 管理者の新規：最初は全チームにチェック
     const teamSel = IS_ADMIN() && !e ? `<div class="cptools" style="margin-top:0"><span class="cpc" style="font-weight:700">チーム（${top.sel.size} / ${tl.length}）</span><button class="linkb" data-act="evAll">全部付ける</button><button class="linkb" data-act="evNone">全部外す</button></div>
         <div class="list">${tl.map(t => `<button class="row" data-act="evTeam" data-t="${esc(t)}" style="min-height:44px">${cbHTML(top.sel.has(t) ? 'on' : 'off')}<span class="rb"><span class="rt">${esc(t)}</span></span></button>`).join('') || '<div class="empty">チームがありません</div>'}</div>` : '';
+    const grp = e && top.ids && top.ids.length > 1 ? top.ids.map(id => (S.events.find(x => x.id === id) || {}).team) : null;
     return sheetHead(e ? '予定の編集' : '新しい予定') + `<div class="sheet-body">
+        ${grp ? `<div class="card"><div class="hint">この予定は、<b>${grp.length}チーム</b>（${esc(grp.map(teamLabel).join('・'))}）に共通です。変更・削除は、すべてに反映されます。</div></div>` : ''}
         ${teamSel}
         <label class="l" style="${teamSel ? '' : 'margin-top:0'}" for="evTitle">予定の名前</label>
         <input id="evTitle" class="inp" maxlength="80" placeholder="例：地区大会" value="${esc(v.title)}">
@@ -934,7 +951,7 @@ function sheetEvent(top){
         <p class="err" id="evErr" hidden></p>
         <div style="height:14px"></div>
         <button class="btn" data-act="saveEvent">${e ? '保存' : '作成'}</button>
-        ${e ? `<button class="btn ghost bad" style="margin-top:10px" data-act="delEvent" data-id="${e.id}">この予定を削除</button>` : ''}</div>`;
+        ${e ? `<button class="btn ghost bad" style="margin-top:10px" data-act="delEvent" data-id="${e.id}" data-ids="${(top.ids || [e.id]).join(',')}">${grp ? `この予定を削除（${grp.length}チームぶん）` : 'この予定を削除'}</button>` : ''}</div>`;
 }
 async function saveEvent(){
     const top = S.sheets[S.sheets.length - 1];
@@ -948,8 +965,9 @@ async function saveEvent(){
     try {
         if (top.id) {
             const patch = { title, start_date: start, end_date: end, place, detail };
-            await API.patch('lab_events', top.id, patch);
-            Object.assign(S.events.find(x => x.id === top.id), patch);
+            const ids = top.ids && top.ids.length ? top.ids : [top.id];
+            await API.patchWhere('lab_events', { id: `in.(${ids.join(',')})` }, patch);
+            S.events.filter(x => ids.includes(x.id)).forEach(x => Object.assign(x, patch));
             toast('保存しました');
         } else {
             const teams = IS_ADMIN() ? [...(top.sel || [])] : [S.me.team];
@@ -963,11 +981,12 @@ async function saveEvent(){
         closeSheet();
     } catch (e) { btn.disabled = false; if (evSqlErr(e)) toast('予定用のSQL（supabase-events.sql）がまだ実行されていません', 5000); else handleErr(e); }
 }
-async function deleteEvent(id){
-    const e = S.events.find(x => x.id === id); if (!e) return;
-    if (!(await askBox({ title: `「${e.title}」を削除しますか？`, ok: '削除する', danger: true, noText: true }))) return;
-    try { await API.del('lab_events', id); } catch (er) { handleErr(er); return; }
-    S.events = S.events.filter(x => x.id !== id);
+async function deleteEvent(ids){
+    const list = S.events.filter(x => ids.includes(x.id)); if (!list.length) return;
+    const e = list[0];
+    if (!(await askBox({ title: `「${e.title}」を削除しますか？`, ok: '削除する', danger: true, noText: true, desc: list.length > 1 ? `${list.length}チームぶんの予定が、すべて消えます。` : '' }))) return;
+    try { await API.delWhere('lab_events', { id: `in.(${list.map(x => x.id).join(',')})` }); } catch (er) { handleErr(er); return; }
+    S.events = S.events.filter(x => !ids.includes(x.id));
     closeSheet(); toast('削除しました');
 }
 
@@ -2075,13 +2094,13 @@ document.addEventListener('click', e => {
         case 'reload': refreshAll(); checkUnread(); if (S.tab === 'memo') loadMemo(); toast('更新しました', 1200); break;
         case 'newTask': pushSheet({ type: 'form', assignee: S.me.id }); break;
         case 'newEvent': pushSheet({ type: 'event' }); break;
-        case 'evOpen': pushSheet({ type: 'event', id: el.dataset.id }); break;
+        case 'evOpen': pushSheet({ type: 'event', id: el.dataset.id, ids: (el.dataset.ids || el.dataset.id).split(',') }); break;
         case 'evTeam': { const tp = S.sheets[S.sheets.length - 1]; const t = el.dataset.t; if (tp.sel.has(t)) tp.sel.delete(t); else tp.sel.add(t); renderSheet(); break; }
         case 'evAll': { const tp = S.sheets[S.sheets.length - 1]; tp.sel = new Set(viewTeamList().filter(x => x !== '__none__')); renderSheet(); break; }
         case 'evNone': { const tp = S.sheets[S.sheets.length - 1]; tp.sel = new Set(); renderSheet(); break; }
         case 'evStatus': S.evStatus = v; render(); break;
         case 'saveEvent': saveEvent(); break;
-        case 'delEvent': deleteEvent(el.dataset.id); break;
+        case 'delEvent': deleteEvent((el.dataset.ids || el.dataset.id).split(',')); break;
         case 'editTask': pushSheet({ type: 'form', id: el.dataset.id }); break;
         case 'openTask': openTask(el.dataset.id); break;
         case 'back': { const tp = S.sheets[S.sheets.length - 1]; if (tp && tp.type === 'compose' && S.cp && S.cp.step === 2) { S.cp.text = ($('#cpText') || {}).value || ''; S.cp.step = 1; renderSheet(); } else closeSheet(); break; }
