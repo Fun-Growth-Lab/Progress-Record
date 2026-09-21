@@ -214,6 +214,7 @@ select.inp{background-image:linear-gradient(45deg,transparent 50%,var(--sub) 50%
 #modal{position:fixed;inset:0;z-index:90;background:rgba(2,6,16,.66);display:flex;align-items:flex-end;justify-content:center}
 .dlg{width:100%;max-width:560px;background:var(--card2);border:1px solid var(--line);border-radius:18px 18px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom));max-height:92vh;overflow-y:auto}
 .dlg h2{margin:0 0 2px;font-size:17px;font-weight:700}
+.dlg .hint{white-space:pre-line}
 #toast{position:fixed;left:50%;width:max-content;bottom:calc(var(--tab) + env(safe-area-inset-bottom) + 76px);transform:translateX(-50%);z-index:100;background:var(--card2);color:var(--ink);border:1px solid var(--pri);font-size:14px;font-weight:600;padding:9px 16px;border-radius:20px;max-width:88vw;text-align:center;box-shadow:0 6px 18px var(--shadow)}
 
 /* ---- ログイン・登録（1画面1項目） ---- */
@@ -488,6 +489,17 @@ async function fetchTeams(){
     all.filter(m => !m.is_hidden && m.team).forEach(m => { c[m.team] = (c[m.team] || 0) + 1; });
     return { all, list: Object.entries(c).sort((a, b) => a[0].localeCompare(b[0], 'ja')) };
 }
+/* 削除したチームと同じ名前で作ろうとしたとき：そのチームの連絡（チャット）の履歴が復元されることを確認する */
+async function confirmReuse(name){
+    try {
+        const t = await fetchTeams();
+        if (t.list.some(([n]) => n === name)) return true;   // 今あるチーム（削除済みではない）
+        const past = await API.list('lab_messages', { select: 'id', team: 'eq.' + name, to_id: 'is.null', limit: 1 });
+        if (!past.length) return true;
+    } catch (e) { return true; }   // 確認できないときは止めない
+    return !!(await askBox({ title: '同じ名前のチームがありました', ok: 'このまま作成', noText: true,
+        desc: `以前、同じ名前のチーム「${name}」が存在していたため、そのチームの連絡（チャット）の履歴が復元されます。よろしいですか？\n完全な新しいチームを作る場合は、違う名前のチーム名にしてください。` }));
+}
 async function ensureTeam(name){ try { await API.insert('lab_teams', { name }); } catch (e) { /* すでにある／チーム表のSQL未実行は無視 */ } }
 async function enterWho(){
     shell(`<div class="ob-body"><p class="hint" style="text-align:center;margin-top:40vh">読み込み中…</p></div>`);
@@ -544,6 +556,7 @@ async function submitReg(){
     const fail = m => { const er = $('#rerr'); er.textContent = m; er.hidden = false; };
     if (!team) return fail(isNew ? 'チーム名を入力してください' : 'チームを選択してください');
     if (isNew && obTeams().some(([t]) => t === team)) return fail('そのチーム名はすでにあります。「チーム選択」から選んでください');
+    if (isNew && !(await confirmReuse(team))) return;
     const btn = $('#regBtn'); btn.disabled = true;
     const row = { id: uuid(), name: OB.name, team };
     try { if (isNew) await ensureTeam(team); await API.insert('lab_members', row); OB.name = ''; OB.team = ''; OB.newTeam = ''; setMe(row); }
@@ -1185,6 +1198,7 @@ async function moveTeam(){
     if (!nm) return fail(isNew ? 'チーム名を入力してください' : 'チームを選択してください');
     if (isNew && nm === S.me.team) return fail('いま所属しているチームです');
     if (isNew && tm.teams.some(([t]) => t === nm)) return fail('そのチーム名はすでにあります。「チーム選択」から選んでください');
+    if (isNew && !(await confirmReuse(nm))) return;
     const old = S.me.team;
     const ok = await askBox({ title: isNew ? `新しいチーム「${nm}」を作って移動しますか？` : `「${nm}」に移動しますか？`, ok: '移動する', noText: true,
         desc: old ? `あなたの記録・タスクも一緒に移動します。「${old}」のメンバーからは見えなくなります。` : 'あなたの記録・タスクが、このチームで見られるようになります。' });
@@ -1202,6 +1216,7 @@ async function createTeamOnly(){
     tm.err = '';
     if (!nm) return fail('チーム名を入力してください');
     if (nm === S.me.team || tm.teams.some(([t]) => t === nm)) return fail('そのチーム名はすでにあります');
+    if (!(await confirmReuse(nm))) return;
     try { await API.insert('lab_teams', { name: nm }); }
     catch (e) { return fail((e.status === 409 || e.code === '23505') ? 'そのチーム名はすでにあります' : (e.status === 404 || /lab_teams/.test(e.message || '')) ? 'チーム表のSQL（supabase-teams.sql）がまだ実行されていません' : errMsg(e)); }
     closeSheet(); toast(`チーム「${nm}」を作成しました（メンバー0人）`, 3600);
@@ -1220,6 +1235,7 @@ async function leaveTeam(){
 async function renameTeamTo(old, nm){
     const t = await fetchTeams();
     if (t.list.some(([n]) => n === nm)) { toast('そのチーム名はすでにあります', 4000); return false; }
+    if (!(await confirmReuse(nm))) return false;
     await API.patchWhere('lab_members', { team: 'eq.' + old }, { team: nm });
     await API.patchWhere('lab_messages', { team: 'eq.' + old, to_id: 'is.null' }, { team: nm });
     try { await API.patchWhere('lab_teams', { name: 'eq.' + old }, { name: nm }); } catch (e) {}
@@ -1313,6 +1329,7 @@ function sheetTeamView(top){
 async function adminCreateTeam(){
     const r = await askBox({ title: 'チームを作成', desc: 'メンバーが0人でもチームは残ります。', input: 'text', placeholder: 'チーム名', required: true, ok: '作成' });
     if (!r) return;
+    if (!(await confirmReuse(r.text))) return;
     try { await API.insert('lab_teams', { name: r.text }); }
     catch (e) { toast((e.status === 409 || e.code === '23505') ? 'そのチーム名はすでにあります' : (e.status === 404 || /lab_teams/.test(e.message || '')) ? 'チーム表のSQL（supabase-teams.sql）がまだ実行されていません' : errMsg(e), 5000); return; }
     await loadAdminTeams(); renderSheet(); toast('チームを作成しました');
