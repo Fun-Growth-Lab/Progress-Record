@@ -201,6 +201,11 @@ select.inp{background-image:linear-gradient(45deg,transparent 50%,var(--sub) 50%
 .theme .dots i{width:14px;height:14px;border-radius:7px;border:1px solid rgba(128,128,128,.45)}
 
 /* ---- 管理者 ---- */
+.tsw{display:flex;align-items:center;gap:3px;max-width:100%;padding:2px 4px 2px 0;font-size:20px;font-weight:700;line-height:1.25;color:var(--ink);text-align:left}
+.tsw-n{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tsw svg{flex:none;color:var(--pri)}
+.dlg.pick{max-height:82vh}
+.dlg.pick .row .ck{flex:none;color:var(--pri);display:flex}
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:4px}
 .stats>div{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 6px;text-align:center}
 .stats b{display:block;font-size:22px;font-weight:700;line-height:1.2}
@@ -620,7 +625,7 @@ async function ensureAdminAccess(){
 function useSavedMe(saved){
     S.me = saved;
     if (saved.admin) {
-        S.admin = ls.get('lab_admin_hash');
+        S.admin = ls.get('lab_admin_hash'); S.viewTeam = ls.get('lab_view_team', '');
         if (!S.admin) { ls.del('lab_me'); S.me = null; enterWho(); return; }   // この端末に管理者の保存がない：アカウント選択から
     }
     startMain();
@@ -628,7 +633,7 @@ function useSavedMe(saved){
 function setMe(m){
     S.me = meFrom(m);
     ls.set('lab_me', S.me);
-    if (S.me.admin) S.admin = ls.get('lab_admin_hash');
+    if (S.me.admin) { S.admin = ls.get('lab_admin_hash'); S.viewTeam = ls.get('lab_view_team', ''); }
     startMain();
 }
 
@@ -645,6 +650,8 @@ const ICON = {
     plus: '<path d="M12 5v14M5 12h14"/>',
     back: '<path d="M15 5l-7 7 7 7"/>',
     chev: '<path d="M9 5l7 7-7 7"/>',
+    chevdown: '<path d="M6 9l6 6 6-6"/>',
+    check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
     refresh: '<path d="M20 11a8 8 0 1 0-2.4 5.7M20 4v7h-7"/>',
     edit: '<path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4zM13.5 6.5l4 4"/>'
 };
@@ -674,11 +681,18 @@ function buildFrame(){
     app.innerHTML = `<div class="top" id="top"></div><div id="main"></div><div id="fabwrap"></div><div id="tabbar"></div>`;
 }
 function renderTop(){
+    const refresh = `<button class="icon-btn" data-act="reload" aria-label="更新">${svg('refresh', 20)}</button>`;
+    if (IS_ADMIN() && ['tasks', 'memo', 'chat'].includes(S.tab)) {
+        // 管理者：見ているチームの名前が一番上。タップして切り替える（タスク・記録・連絡で共通）
+        const name = S.viewTeam ? teamLabel(S.viewTeam) : (S.tab === 'memo' ? 'チームを選択' : '全チーム');
+        const sub = { tasks: `タスク · ${fmtMD(today())}`, memo: `記録 · ${fmtMD(today())}`, chat: '連絡' }[S.tab];
+        $('#top').innerHTML = `<div class="tw"><button class="tsw" data-act="teamPick" aria-label="チームを切り替える"><span class="tsw-n">${esc(name)}</span>${svg('chevdown', 20, 2.4)}</button><div class="st">${esc(sub)}</div></div>${refresh}`;
+        return;
+    }
     const title = { tasks: 'タスク', memo: '記録', chat: '連絡', more: '設定' }[S.tab];
-    const adm = IS_ADMIN();
-    const tl = adm ? (S.viewTeam ? teamLabel(S.viewTeam) : '全チーム') : teamLabel(S.me.team);
-    const sub = { tasks: `${tl} · ${fmtMD(today())}`, memo: adm && !S.viewTeam ? 'チーム未選択' : tl, chat: adm ? '管理者' : tl, more: S.me.name }[S.tab];
-    $('#top').innerHTML = `<div class="tw"><h1>${esc(title)}</h1><div class="st">${esc(sub)}</div></div><button class="icon-btn" data-act="reload" aria-label="更新">${svg('refresh', 20)}</button>`;
+    const tl = teamLabel(S.me.team);
+    const sub = { tasks: `${tl} · ${fmtMD(today())}`, memo: tl, chat: tl, more: S.me.name }[S.tab];
+    $('#top').innerHTML = `<div class="tw"><h1>${esc(title)}</h1><div class="st">${esc(sub)}</div></div>${refresh}`;
 }
 function renderTabbar(){
     const newCount = S.newIds.size;
@@ -749,7 +763,7 @@ function taskRow(t, showWho){
         <span class="rb"><span class="rt">${esc(t.title)}${S.newIds.has(t.id) ? '<span class="new">NEW</span>' : ''}</span>${meta ? `<span class="rm">${meta}</span>` : ''}</span>${svg('chev', 16)}</button>`;
 }
 function emptyMsg(){
-    return { open: '<b>タスクはありません</b>右下の＋から追加できます', done: '<b>完了したタスクはありません</b>', dropped: '<b>破棄したタスクはありません</b>' }[S.taskStatus];
+    return { open: IS_ADMIN() ? '<b>タスクはありません</b>' : '<b>タスクはありません</b>右下の＋から追加できます', done: '<b>完了したタスクはありません</b>', dropped: '<b>破棄したタスクはありません</b>' }[S.taskStatus];
 }
 function taskListHTML(list, showWho){
     if (!list.length) return `<div class="empty">${emptyMsg()}</div>`;
@@ -765,13 +779,8 @@ function segHTML(list){
     const b = (v, l) => `<button data-act="status" data-v="${v}" class="${S.taskStatus === v ? 'on' : ''}">${l}<span class="c">${c[v]}</span></button>`;
     return `<div class="seg">${b('open', '進行中')}${b('done', '完了')}${b('dropped', '破棄')}</div>`;
 }
-/* 管理者用：チームの選択ボタン */
-function teamChips(includeAll){
-    const chip = (v, label) => `<button data-act="vt" data-team="${esc(v)}" class="${S.viewTeam === v ? 'on' : ''}">${esc(label)}</button>`;
-    return `<div class="chips">${includeAll ? chip('', '全体') : ''}${viewTeamList().map(t => chip(t, teamLabel(t))).join('')}</div>`;
-}
 function viewTasksAdmin(){
-    const chips = teamChips(true);
+    const chips = '';
     if (!S.viewTeam) {   // 全体：全チームの状況
         const rows = S.at.teams.filter(t => t.name).map(t => `<button class="row" data-act="vt" data-team="${esc(t.name)}"><span class="av">${initial(t.name)}</span><span class="rb"><span class="rt">${esc(t.name)}</span>
             <span class="rm"><span>${t.members.filter(m => !m.is_hidden).length}人</span><span>進行中 ${t.open}</span>${t.overdue ? `<span class="due over">期限切れ ${t.overdue}</span>` : ''}<span>直近7日の記録 ${t.recent}件</span></span></span>${svg('chev', 16)}</button>`).join('');
@@ -835,7 +844,7 @@ function viewMemo(){
         }).join('');
     }
     const seg = (act, cur, opts) => `<div class="seg">${opts.map(([v, l]) => `<button data-act="${act}" data-v="${v}" class="${cur === v ? 'on' : ''}">${l}</button>`).join('')}</div>`;
-    return `${admin ? teamChips(false) : ''}<div class="datebar">
+    return `<div class="datebar">
         <button class="icon-btn" data-act="memoShift" data-v="-1" aria-label="前へ">${svg('back', 20)}</button>
         <input class="inp" type="date" id="memoDate" value="${d}">
         <button class="icon-btn" data-act="memoShift" data-v="1" aria-label="次へ">${svg('chev', 20)}</button></div>
@@ -934,18 +943,23 @@ function viewChat(){
     const row = (key, av, nameHtml, meta) => `<button class="row" data-act="openRoom" data-key="${esc(key)}"><span class="av">${av}</span><span class="rb"><span class="rt">${nameHtml}</span>${meta ? `<span class="rm">${esc(meta)}</span>` : ''}</span>${un(key)}${svg('chev', 16)}</button>`;
     let html = '';
     if (S.me.team) html += `<div class="gh" style="margin-top:4px">チーム</div><div class="list">${row('team', svg('team', 18), esc(S.me.team), '全員')}</div>`;
-    if (admin) {   // 管理者：全チームのチームチャットと、全メンバーへの個別メッセージ
+    if (admin) {   // 管理者：上で選んだチームの「チームチャット」と「メンバー」。全チームでは、未読・管理者・各チームの部屋
         const A = S.adminAll;
-        if (!A) return html + '<div class="empty">読み込み中…</div>';
-        const others = A.list.filter(([t]) => t !== S.me.team);
-        if (others.length) html += `<div class="gh">全チーム<span class="n">${others.length}</span></div><div class="list">${others.map(([t, n]) => row('t:' + t, svg('team', 18), esc(t), `${n}人`)).join('')}</div>`;
+        if (!A) return '<div class="empty">読み込み中…</div>';
         const people = A.all.filter(m => !m.is_hidden && m.id !== S.me.id);
-        const groups = [];
+        const t = S.viewTeam;
+        if (t) {
+            const ms = people.filter(m => !m.is_admin && (m.team || '') === (t === '__none__' ? '' : t));
+            if (t !== '__none__') html += `<div class="gh" style="margin-top:4px">チームチャット</div><div class="list">${row('t:' + t, svg('team', 18), esc(t), 'メンバー全員に届きます')}</div>`;
+            html += `<div class="gh" ${t === '__none__' ? 'style="margin-top:4px"' : ''}>メンバー<span class="n">${ms.length}</span></div>` + (ms.length ? `<div class="list">${ms.map(m => row(m.id, initial(m.name), nameM(m))).join('')}</div>` : '<div class="empty">メンバーがいません</div>');
+            return html;
+        }
+        const unreadPeople = people.filter(m => S.unread[m.id]);
+        if (unreadPeople.length) html += `<div class="gh" style="margin-top:4px">未読<span class="n">${unreadPeople.length}</span></div><div class="list">${unreadPeople.map(m => row(m.id, initial(m.name), nameM(m), m.is_admin ? '管理者' : teamLabel(m.team))).join('')}</div>`;
         const ads = people.filter(m => m.is_admin);
-        if (ads.length) groups.push(['管理者', ads]);
-        [...new Set(people.filter(m => !m.is_admin).map(m => m.team))].forEach(t => groups.push([teamLabel(t) + 'のメンバー', people.filter(m => !m.is_admin && m.team === t)]));
-        groups.forEach(([label, ms]) => { html += `<div class="gh">${esc(label)}<span class="n">${ms.length}</span></div><div class="list">${ms.map(m => row(m.id, initial(m.name), nameM(m))).join('')}</div>`; });
-        return html || '<div class="empty"><b>メンバーがいません</b></div>';
+        if (ads.length) html += `<div class="gh"${unreadPeople.length ? '' : ' style="margin-top:4px"'}>管理者<span class="n">${ads.length}</span></div><div class="list">${ads.map(m => row(m.id, initial(m.name), nameM(m))).join('')}</div>`;
+        if (A.list.length) html += `<div class="gh"${unreadPeople.length || ads.length ? '' : ' style="margin-top:4px"'}>全チームのチャット<span class="n">${A.list.length}</span></div><div class="list">${A.list.map(([tn, n]) => row('t:' + tn, svg('team', 18), esc(tn), `${n}人`)).join('')}</div>`;
+        return html + '<div class="hint" style="margin:14px 4px">個別のメッセージは、上のチーム名をタップして、チームを選ぶと、メンバーの一覧が出ます。</div>';
     }
     // 一般のメンバー：同じチームの人と、管理者にだけ連絡できる
     const others = visMembers().filter(m => m.id !== S.me.id);
@@ -959,7 +973,7 @@ function viewChat(){
 function viewMore(){
     const d = S.dl; const cur = THEMES[ls.get('lab_theme', 'solar')] ? ls.get('lab_theme', 'solar') : 'solar';
     const chev = svg('chev', 16);
-    return `<div class="card acc"><span class="av lg">${initial(S.me.name)}</span><div class="rb"><b>${esc(S.me.name)}${adminBadge(S.me.id)}</b><span class="t">${IS_ADMIN() ? '管理者（どのチームにも所属しません）' : esc(teamLabel(S.me.team))}</span></div><button class="btn gray sm" data-act="rename">名前変更</button></div>
+    return `<div class="card acc"><span class="av lg">${initial(S.me.name)}</span><div class="rb"><b>${esc(S.me.name)}${adminBadge(S.me.id)}</b><span class="t">${IS_ADMIN() ? '管理者' : esc(teamLabel(S.me.team))}</span></div><button class="btn gray sm" data-act="rename">名前変更</button></div>
       ${IS_ADMIN() ? `<div class="gh">管理</div>
       <div class="list"><button class="row" data-act="admTeams"><span class="rb"><span class="rt">チーム管理</span><span class="rm">作成・名前の変更・削除・メッセージ</span></span>${chev}</button>
         <button class="row" data-act="admOpen"><span class="rb"><span class="rt">メンバー管理</span><span class="rm">非表示にする・元に戻す</span></span>${chev}</button></div>` : `      <div class="gh">チーム</div>
@@ -1058,7 +1072,36 @@ async function loadAdminBase(){
     if (S.viewTeam && !viewTeamList().includes(S.viewTeam)) S.viewTeam = '';
     if (!S.viewTeam && S.tab === 'memo' && viewTeamList().length) S.viewTeam = viewTeamList()[0];
 }
+/* 管理者：チームの選択（画面下から出る縦スクロールの一覧。現在のチームにチェック） */
+function teamPickOptions(){
+    const at = S.at.loaded ? S.at.teams : [];
+    const unread = v => (S.adminAll ? S.adminAll.all : []).filter(m => !m.is_admin && (m.team || '') === (v === '__none__' ? '' : v)).reduce((a, m) => a + (S.unread[m.id] || 0), 0);
+    const opts = [];
+    if (S.tab !== 'memo') opts.push({ v: '', label: '全チーム', meta: `${S.teamNames.length}チーム`, un: Object.values(S.unread).reduce((a, b) => a + b, 0) });
+    viewTeamList().forEach(v => {
+        const t = at.find(x => x.name === (v === '__none__' ? '' : v));
+        opts.push({ v, label: teamLabel(v), meta: t ? `${t.members.filter(m => !m.is_hidden).length}人 · 進行中 ${t.open}${t.overdue ? ` · 期限切れ ${t.overdue}` : ''}` : '', un: unread(v) });
+    });
+    return opts;
+}
+function openTeamPicker(){
+    const m = $('#modal'); m.hidden = false;
+    const many = viewTeamList().length > 7;
+    const list = q => teamPickOptions().filter(o => !q || o.label.includes(q)).map(o => `<button class="row ${S.viewTeam === o.v ? 'sel' : ''}" data-pick="${esc(o.v)}"><span class="av">${o.v === '' ? svg('team', 18) : initial(o.label)}</span><span class="rb"><span class="rt">${esc(o.label)}</span>${o.meta ? `<span class="rm">${esc(o.meta)}</span>` : ''}</span>${S.tab === 'chat' && o.un ? `<span class="un">${o.un}</span>` : ''}${S.viewTeam === o.v ? `<span class="ck">${svg('check', 20, 2.6)}</span>` : ''}</button>`).join('') || '<div class="empty">該当するチームがありません</div>';
+    m.innerHTML = `<div class="dlg pick"><h2>チームを選択</h2>${many ? '<input id="pickQ" class="inp" placeholder="チーム名で絞り込み" autocomplete="off" style="margin-top:10px">' : ''}<div class="list" id="pickList" style="margin-top:10px">${list('')}</div><button class="btn gray" id="pickClose" style="margin-top:12px">閉じる</button></div>`;
+    const close = () => { m.hidden = true; m.innerHTML = ''; m.onclick = null; };
+    const sel = m.querySelector('.row.sel'); if (sel) sel.scrollIntoView({ block: 'center' });
+    m.onclick = e => {
+        if (e.target === m || e.target.id === 'pickClose') return close();
+        const b = e.target.closest('[data-pick]'); if (!b) return;
+        const v = b.dataset.pick; close();
+        if (v !== S.viewTeam) setViewTeam(v);
+    };
+    const q = $('#pickQ'); if (q) q.oninput = () => { $('#pickList').innerHTML = list(q.value.trim()); };
+    if (!S.at.loaded) loadAdminTeams().then(() => { const pl = $('#pickList'); if (pl && !m.hidden) pl.innerHTML = list(q ? q.value.trim() : ''); });
+}
 async function setViewTeam(name){
+    ls.set('lab_view_team', name);
     S.viewTeam = name; S.members = []; S.tasks = []; S.logs = {}; S.memoData = { notes: [], logs: [] }; S.memoLoaded = false;
     render();
     try {
@@ -1389,7 +1432,7 @@ async function loadAdminTeams(){
         const teamOf = {}; all.forEach(m => { teamOf[m.id] = m.team; });
         const mk = (name, members) => ({ name, members, open: 0, overdue: 0, done: 0, recent: 0 });
         const rows = list.map(([name]) => mk(name, all.filter(m => m.team === name)));
-        const none = all.filter(m => !m.team);
+        const none = all.filter(m => !m.team && !m.is_admin);
         if (none.length) rows.push(mk('', none));
         const byName = Object.fromEntries(rows.map(r => [r.name, r]));
         tasks.forEach(t => { const r = byName[teamOf[t.assignee_id]]; if (!r) return; if (t.status === 'open') { r.open++; if (t.due_date && t.due_date < today()) r.overdue++; } else if (t.status === 'done') r.done++; });
@@ -1732,6 +1775,7 @@ document.addEventListener('click', e => {
         case 'regStart': OB.kind = 'member'; OB.name = ''; OB.team = ''; OB.newTeam = ''; OB.mode = 'select'; renderRegName(); break;
         case 'regAdmin': OB.kind = 'admin'; OB.name = ''; renderRegName(); break;
         case 'vt': setViewTeam(el.dataset.team); break;
+        case 'teamPick': openTeamPicker(); break;
         case 'obAccounts': renderAccounts(); break;
         case 'obName': renderRegName(); break;
         case 'obMode': { const t = $('#rTeam'); if (t) OB.newTeam = t.value; OB.mode = v; renderRegTeam(); break; }
