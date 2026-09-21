@@ -1627,7 +1627,7 @@ async function admHide(id, hide){
 }
 
 /* ---------- 新規メッセージ（宛先をチェックボックスで選んで送る） ----------
-   管理者：「全員」（チームごとにまとめて全員を表示）か「チーム」（選んだチームのメンバー）。最初は全員にチェック。
+   管理者：チームごとにまとめて全員を表示。最初は全員にチェック。
    一般メンバー：自分のチームの人と管理者を表示（最初は全員にチェック）。
    どちらも「全員付ける」「全員外す」と、個人ごとの付け外しができる。届き方は、一人ひとりへの個別メッセージ。 */
 function cpGroups(){
@@ -1636,7 +1636,6 @@ function cpGroups(){
         const A = S.adminAll; if (!A) return [];
         const people = A.all.filter(m => !m.is_hidden && m.id !== S.me.id);
         const mem = people.filter(m => !m.is_admin);
-        if (cp.mode === 'team') return [{ k: cp.team, label: teamLabel(cp.team), ms: mem.filter(m => (m.team || '') === (cp.team === '__none__' ? '' : cp.team)) }];
         const groups = A.list.map(([t]) => ({ k: t, label: t, ms: mem.filter(m => m.team === t) })).filter(g => g.ms.length);
         const none = mem.filter(m => !m.team);
         if (none.length) groups.push({ k: '__none__', label: '所属なし', ms: none });
@@ -1655,8 +1654,7 @@ const cpAllIds = () => cpGroups().flatMap(g => g.ms.map(m => m.id));
 const cpFill = () => { S.cp.sel = new Set(cpAllIds()); };
 async function openCompose(){
     if (IS_ADMIN()) { if (!S.adminAll) await loadAdminChat(); } else await loadAdmins();
-    const tl = viewTeamList();
-    S.cp = { step: 1, mode: 'all', team: (S.viewTeam && tl.includes(S.viewTeam)) ? S.viewTeam : (tl[0] || ''), sel: new Set(), text: '' };
+    S.cp = { step: 1, sel: new Set(), text: '' };
     cpFill();
     pushSheet({ type: 'compose' });
 }
@@ -1684,13 +1682,7 @@ function sheetCompose(){
         <p class="hint" style="margin:8px 2px">宛先の一人ひとりに、個別のメッセージとして届きます。返信は、その人とのメッセージに届きます。</p>
         <div style="height:8px"></div><button class="btn" id="cpSendBtn" data-act="cpSend">${ids.length}人に送信</button></div>`;
     }
-    let ctl = '';
-    if (IS_ADMIN()) {
-        const tl = viewTeamList();
-        ctl = `<div class="seg" style="margin-bottom:8px">${[['all', '全員'], ['team', 'チーム']].map(([v, l]) => `<button data-act="cpMode" data-v="${v}" class="${cp.mode === v ? 'on' : ''}">${l}</button>`).join('')}</div>`
-            + (cp.mode === 'team' ? (tl.length ? `<select id="cpTeamSel" class="inp" style="margin-bottom:8px">${tl.map(v => `<option value="${esc(v)}" ${v === cp.team ? 'selected' : ''}>${esc(teamLabel(v))}</option>`).join('')}</select>` : '<div class="empty">チームがありません</div>') : '');
-    }
-    return sheetHead('新規メッセージ') + `<div class="sheet-body" id="cpBody">${ctl}<div id="cpList">${cpListHTML()}</div></div><div class="cpbar" id="cpBar">${cpBarInner()}</div>`;
+    return sheetHead('新規メッセージ') + `<div class="sheet-body" id="cpBody"><div id="cpList">${cpListHTML()}</div></div><div class="cpbar" id="cpBar">${cpBarInner()}</div>`;
 }
 async function cpSend(){
     const cp = S.cp, ta = $('#cpText'); const text = ta ? ta.value.trim() : '';
@@ -1885,7 +1877,6 @@ document.addEventListener('click', e => {
         case 'tvRestore': restoreTeam(el.dataset.team); break;
         case 'tvPurge': purgeTeam(el.dataset.team); break;
         case 'cpOpen': openCompose(); break;
-        case 'cpMode': if (S.cp.mode !== v) { S.cp.mode = v; cpFill(); renderSheet(); } break;
         case 'cpAll': cpFill(); updateCp(); break;
         case 'cpClear': S.cp.sel = new Set(); updateCp(); break;
         case 'cpGrp': { const g = cpGroups().find(x => x.k === el.dataset.k); if (g) { const ids = g.ms.map(m => m.id); if (ids.every(id => S.cp.sel.has(id))) ids.forEach(id => S.cp.sel.delete(id)); else ids.forEach(id => S.cp.sel.add(id)); updateCp(); } break; }
@@ -1919,7 +1910,6 @@ document.addEventListener('change', e => {
     if (e.target.id === 'showApw') $('#apw').type = e.target.checked ? 'text' : 'password';
 });
 document.addEventListener('input', e => {
-    if (e.target.id === 'cpTeamSel' && S.cp) { S.cp.team = e.target.value; cpFill(); updateCp(); }
     if (e.target.id === 'msgText') { const t = e.target; t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 130) + 'px'; }
 });
 
