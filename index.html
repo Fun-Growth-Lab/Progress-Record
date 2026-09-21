@@ -898,7 +898,9 @@ function sheetEvent(top){
     const e = top.id ? S.events.find(x => x.id === top.id) : null;
     const tl = viewTeamList().filter(v => v !== '__none__');
     const v = e || { title: '', start_date: today(), end_date: '', place: '', detail: '', team: (S.viewTeam && tl.includes(S.viewTeam)) ? S.viewTeam : (tl[0] || '') };
-    const teamSel = IS_ADMIN() && !e ? `<label class="l" for="evTeam">チーム</label><select id="evTeam" class="inp">${tl.map(t => `<option value="${esc(t)}" ${t === v.team ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select>` : '';
+    if (IS_ADMIN() && !e && !top.sel) top.sel = new Set(tl);   // 管理者の新規：最初は全チームにチェック
+    const teamSel = IS_ADMIN() && !e ? `<div class="cptools" style="margin-top:0"><span class="cpc" style="font-weight:700">チーム（${top.sel.size} / ${tl.length}）</span><button class="linkb" data-act="evAll">全部付ける</button><button class="linkb" data-act="evNone">全部外す</button></div>
+        <div class="list">${tl.map(t => `<button class="row" data-act="evTeam" data-t="${esc(t)}" style="min-height:44px">${cbHTML(top.sel.has(t) ? 'on' : 'off')}<span class="rb"><span class="rt">${esc(t)}</span></span></button>`).join('') || '<div class="empty">チームがありません</div>'}</div>` : '';
     return sheetHead(e ? '予定の編集' : '新しい予定') + `<div class="sheet-body">
         ${teamSel}
         <label class="l" style="${teamSel ? '' : 'margin-top:0'}" for="evTitle">予定の名前</label>
@@ -930,12 +932,12 @@ async function saveEvent(){
             Object.assign(S.events.find(x => x.id === top.id), patch);
             toast('保存しました');
         } else {
-            const team = IS_ADMIN() ? ($('#evTeam') || {}).value : S.me.team;
-            if (!team) { btn.disabled = false; err('チームがありません'); return; }
-            const row = { id: uuid(), team, title, start_date: start, end_date: end, place, detail, created_by: S.me.id };
-            await API.insert('lab_events', row);
-            S.events.push({ ...row, created_at: new Date().toISOString() });
-            toast('予定を作りました');
+            const teams = IS_ADMIN() ? [...(top.sel || [])] : [S.me.team];
+            if (!teams.length) { btn.disabled = false; err('チームを1つ以上選んでください'); return; }
+            const rows = teams.map(team => ({ id: uuid(), team, title, start_date: start, end_date: end, place, detail, created_by: S.me.id }));
+            await API.insert('lab_events', rows);
+            rows.forEach(row => S.events.push({ ...row, created_at: new Date().toISOString() }));
+            toast(teams.length > 1 ? `${teams.length}チームに予定を作りました` : '予定を作りました');
         }
         S.events.sort((a, b) => a.start_date < b.start_date ? -1 : a.start_date > b.start_date ? 1 : 0);
         closeSheet();
@@ -1974,6 +1976,9 @@ document.addEventListener('click', e => {
         case 'newTask': pushSheet({ type: 'form', assignee: S.me.id }); break;
         case 'newEvent': pushSheet({ type: 'event' }); break;
         case 'evOpen': pushSheet({ type: 'event', id: el.dataset.id }); break;
+        case 'evTeam': { const tp = S.sheets[S.sheets.length - 1]; const t = el.dataset.t; if (tp.sel.has(t)) tp.sel.delete(t); else tp.sel.add(t); renderSheet(); break; }
+        case 'evAll': { const tp = S.sheets[S.sheets.length - 1]; tp.sel = new Set(viewTeamList().filter(x => x !== '__none__')); renderSheet(); break; }
+        case 'evNone': { const tp = S.sheets[S.sheets.length - 1]; tp.sel = new Set(); renderSheet(); break; }
         case 'evStatus': S.evStatus = v; render(); break;
         case 'saveEvent': saveEvent(); break;
         case 'delEvent': deleteEvent(el.dataset.id); break;
