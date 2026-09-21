@@ -551,12 +551,12 @@ function renderAccounts(){
     const admins = all.filter(m => m.is_admin);
     if (admins.length) groups.push(['管理者', admins]);
     [...new Set(all.filter(m => !m.is_admin).map(m => m.team))].forEach(t => groups.push([teamLabel(t), all.filter(m => !m.is_admin && m.team === t)]));
-    shell(`${obHead()}<div class="ob-body"><h2 class="ob-h">${all.length ? 'アカウント選択' : 'はじめに'}</h2>
+    shell(`${obHead('obPw')}<div class="ob-body"><h2 class="ob-h">${all.length ? 'アカウント選択' : 'はじめに'}</h2>
       ${groups.map(([label, ms]) => `<div class="gh" style="margin-top:0">${esc(label)}</div><div class="list" style="margin-bottom:14px">${ms.map(m =>
         `<button class="row" data-act="pickMe" data-id="${m.id}"><span class="av">${initial(m.name)}</span><span class="rb"><span class="rt">${nameM(m)}</span></span>${svg('chev', 16)}</button>`).join('')}</div>`).join('')}
-      <div class="gh" style="margin-top:${all.length ? 8 : 0}px">新規登録</div>
-      <button class="btn ghost" data-act="regStart">新規登録</button>
-      <button class="btn ghost" style="margin-top:8px" data-act="regAdmin">管理者として新規登録</button>
+      <div class="gh" style="margin-top:${all.length ? 8 : 0}px">はじめて使う</div>
+      <div class="list"><button class="row" data-act="regStart"><span class="rb"><span class="rt">メンバーとして新規登録</span><span class="rm">名前とチームを登録します</span></span>${svg('chev', 16)}</button>
+        <button class="row" data-act="regAdmin"><span class="rb"><span class="rt">管理者として新規登録</span><span class="rm">チームには所属しません（管理者パスワードが必要）</span></span>${svg('chev', 16)}</button></div>
       ${footLinks()}</div>`);
 }
 /* 新規登録 1/2：名前（一般・管理者 共通） */
@@ -574,33 +574,64 @@ function renderRegName(err){
         if (adm) renderAdminPw(); else renderRegTeam();
     };
 }
+/* 管理者パスワードの確認。成功すると、この端末に保存する（以後は聞かない）。戻り値：エラー文（成功なら空） */
+async function verifyAdminPw(input){
+    const raw = (input || '').normalize('NFKC').trim();
+    if (!raw) return 'パスワードを入力してください';
+    const hash = await sha256hex(raw); S.admin = hash;
+    try { if ((await API.rpc('lab_admin_check')) !== true) { S.admin = null; return '管理者パスワードが違います（チーム全員で使うパスワードとは別のものです）'; } }
+    catch (e) { S.admin = null; return e.status === 404 ? '管理者用のSQL（supabase-admin.sql）がまだ実行されていません' : errMsg(e); }
+    ls.set('lab_admin_hash', hash);
+    return '';
+}
+/* この端末に保存済みの管理者パスワードが、いま有効かどうか */
+async function tryStoredAdmin(){
+    const stored = ls.get('lab_admin_hash'); if (!stored) return false;
+    S.admin = stored;
+    try { if ((await API.rpc('lab_admin_check')) === true) return true; } catch (e) {}
+    S.admin = null; ls.del('lab_admin_hash');   // 管理者パスワードが変わっていた
+    return false;
+}
+const adminPwFields = err => `<label class="l" for="apw" style="margin-top:0">管理者パスワード</label>
+      <input id="apw" class="inp" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+      <label class="chk"><input type="checkbox" id="showApw"><span>パスワードを表示</span></label>
+      <p class="err" id="rerr" ${err ? '' : 'hidden'}>${esc(err || '')}</p>`;
 /* 管理者として新規登録 2/2：管理者パスワード */
 function renderAdminPw(err){
     shell(`${obHead('obName', '2 / 2')}<div class="ob-body"><h2 class="ob-h">管理者パスワード</h2>
-      <form id="apwForm"><label class="l" for="apw" style="margin-top:0">管理者パスワード</label>
-      <input id="apw" class="inp" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
-      <label class="chk"><input type="checkbox" id="showApw"><span>パスワードを表示</span></label>
-      <p class="err" id="rerr" ${err ? '' : 'hidden'}>${esc(err || '')}</p>
+      <form id="apwForm">${adminPwFields(err)}
       <div style="height:14px"></div><button class="btn" id="apwBtn" type="submit">登録</button></form>
       <p class="hint" style="margin:14px 2px 0">管理者は、どのチームにも所属せず、全チームを管理します。この端末では、次回からパスワードは聞かれません。</p></div>`);
     $('#apwForm').onsubmit = e => { e.preventDefault(); submitAdminReg(); };
 }
 async function submitAdminReg(){
     const fail = m => { const er = $('#rerr'); er.textContent = m; er.hidden = false; };
-    const raw = $('#apw').value.normalize('NFKC').trim();
-    if (!raw) return fail('パスワードを入力してください');
     const btn = $('#apwBtn'); btn.disabled = true;
-    const hash = await sha256hex(raw); S.admin = hash;
-    try { if ((await API.rpc('lab_admin_check')) !== true) { S.admin = null; btn.disabled = false; return fail('パスワードが違います'); } }
-    catch (e) { S.admin = null; btn.disabled = false; return fail(e.status === 404 ? '管理者用のSQL（supabase-admin.sql）がまだ実行されていません' : errMsg(e)); }
+    const err = await verifyAdminPw($('#apw').value);
+    if (err) { btn.disabled = false; return fail(err); }
     const row = { id: uuid(), name: OB.name, team: '', is_admin: true };
     try { await API.insert('lab_members', row); }
     catch (e) {
         S.admin = null; btn.disabled = false;
-        return fail((e.status === 409 || e.code === '23505') ? '同じ名前の管理者のアカウントがあります' : /is_admin/.test(e.message || '') ? '管理者マークのSQL（supabase-admin-badge.sql）がまだ実行されていません' : errMsg(e));
+        return fail((e.status === 409 || e.code === '23505') ? '同じ名前の管理者のアカウントがあります。アカウント選択から、その名前を選んでください' : /is_admin/.test(e.message || '') ? '管理者マークのSQL（supabase-admin-badge.sql）がまだ実行されていません' : errMsg(e));
     }
-    ls.set('lab_admin_hash', hash); OB.name = '';
+    OB.name = '';
     setMe(row);
+}
+/* 管理者のアカウントを選んだとき：この端末で最初の1回だけ管理者パスワード */
+function renderAdminLogin(m, err){
+    shell(`${obHead('obAccounts')}<div class="ob-body"><h2 class="ob-h">管理者ログイン</h2>
+      <div class="card" style="display:flex;align-items:center;gap:10px"><span class="av">${initial(m.name)}</span><b>${nameM(m)}</b></div>
+      <form id="alForm">${adminPwFields(err)}
+      <div style="height:14px"></div><button class="btn" id="alBtn" type="submit">ログイン</button></form>
+      <p class="hint" style="margin:14px 2px 0">この端末では、次回からパスワードは聞かれません。</p></div>`);
+    $('#alForm').onsubmit = async e => {
+        e.preventDefault();
+        const btn = $('#alBtn'); btn.disabled = true;
+        const er = await verifyAdminPw($('#apw').value);
+        if (er) { btn.disabled = false; const x = $('#rerr'); x.textContent = er; x.hidden = false; return; }
+        setMe(m);
+    };
 }
 /* 新規登録 2/2：チーム選択 または チーム登録（一般のみ） */
 function renderRegTeam(err){
@@ -626,22 +657,6 @@ async function submitReg(){
     const row = { id: uuid(), name: OB.name, team };
     try { if (isNew) await ensureTeam(team); await API.insert('lab_members', row); OB.name = ''; OB.team = ''; OB.newTeam = ''; setMe(row); }
     catch (e) { btn.disabled = false; fail((e.status === 409 || e.code === '23505') ? '同じチームに同じ名前のアカウントがあります' : errMsg(e)); }
-}
-/* 管理者アカウントを使うとき：この端末で最初の1回だけ管理者パスワードを確認（以後は聞かない） */
-async function ensureAdminAccess(){
-    const stored = ls.get('lab_admin_hash');
-    if (stored) {
-        S.admin = stored;
-        try { if ((await API.rpc('lab_admin_check')) === true) return true; } catch (e) {}
-        S.admin = null; ls.del('lab_admin_hash');   // 管理者パスワードが変わっていた
-    }
-    const r = await askBox({ title: '管理者パスワード', desc: 'この端末で最初の1回だけ入力します。', input: 'password', placeholder: '管理者パスワード', ok: '入る' });
-    if (!r || !r.text) return false;
-    const hash = await sha256hex(r.text.normalize('NFKC').trim()); S.admin = hash;
-    try { if ((await API.rpc('lab_admin_check')) !== true) { S.admin = null; toast('管理者パスワードがちがいます'); return false; } }
-    catch (e) { S.admin = null; toast(e.status === 404 ? '管理者用のSQL（supabase-admin.sql）がまだ実行されていません' : errMsg(e), 5000); return false; }
-    ls.set('lab_admin_hash', hash);
-    return true;
 }
 function useSavedMe(saved){
     S.me = saved;
@@ -1120,7 +1135,7 @@ function viewMore(){
     return `<div class="card acc"><span class="av lg">${initial(S.me.name)}</span><div class="rb"><b>${esc(S.me.name)}${adminBadge(S.me.id)}</b><span class="t">${IS_ADMIN() ? '管理者' : esc(teamLabel(S.me.team))}</span></div><button class="btn gray sm" data-act="rename">名前変更</button></div>
       ${IS_ADMIN() ? `<div class="gh">管理</div>
       <div class="list"><button class="row" data-act="admTeams"><span class="rb"><span class="rt">チーム管理</span><span class="rm">作成・名前の変更・削除・メッセージ</span></span>${chev}</button>
-        <button class="row" data-act="admOpen"><span class="rb"><span class="rt">メンバー管理</span><span class="rm">非表示にする・元に戻す</span></span>${chev}</button></div>` : `      <div class="gh">チーム</div>
+        <button class="row" data-act="admOpen"><span class="rb"><span class="rt">メンバー管理</span><span class="rm">非表示・元に戻す・削除</span></span>${chev}</button></div>` : `      <div class="gh">チーム</div>
       <div class="list">${S.me.team ? `<button class="row" data-act="teamRename"><span class="rb"><span class="rt">チーム名を変更</span><span class="rm">現在：${esc(S.me.team)}（メンバー全員に反映）</span></span>${chev}</button>` : ''}
         <button class="row" data-act="teamOpen"><span class="rb"><span class="rt">${S.me.team ? 'チームを変更' : 'チームに参加'}</span><span class="rm">${S.me.team ? '別のチームに参加、または新しいチームを作成' : '既存のチームに参加、または新しいチームを作成'}</span></span>${chev}</button>
         ${S.me.team ? `<button class="row" data-act="teamLeave"><span class="rb"><span class="rt" style="color:var(--bad)">チームから脱退</span></span>${chev}</button>` : ''}</div>
@@ -1723,20 +1738,53 @@ function adminListHTML(){
     const ads = S.adminList.filter(m => m.is_admin);
     if (ads.length) groups.push(['管理者', ads]);
     [...new Set(S.adminList.filter(m => !m.is_admin).map(m => m.team))].forEach(t => groups.push([teamLabel(t), S.adminList.filter(m => !m.is_admin && m.team === t)]));
-    return groups.map(([label, ms]) => `<div class="gh">${esc(label)}</div><div class="list">${ms.map(m => `
-        <div class="row static"><span class="av">${initial(m.name)}</span><span class="rb"><span class="rt">${nameM(m)}${S.me && m.id === S.me.id ? '<span class="tag">この端末</span>' : ''}${m.is_hidden ? '<span class="tag">非表示中</span>' : ''}</span></span>
-          ${m.is_admin ? '' : `<button class="btn sm ${m.is_hidden ? 'ok' : 'ghost bad'}" data-act="admHide" data-id="${m.id}" data-v="${m.is_hidden ? 0 : 1}">${m.is_hidden ? '元に戻す' : '非表示'}</button>`}</div>`).join('')}</div>`).join('')
+    const sel = S.admSel;
+    const info = m => `<span class="rb"><span class="rt">${nameM(m)}${S.me && m.id === S.me.id ? '<span class="tag">この端末</span>' : ''}${m.is_hidden ? '<span class="tag">非表示中</span>' : ''}</span></span>`;
+    const row = m => sel
+        ? `<button class="row" data-act="admPick" data-id="${m.id}">${cbHTML(sel.has(m.id) ? 'on' : 'off')}<span class="av">${initial(m.name)}</span>${info(m)}</button>`
+        : `<div class="row static"><span class="av">${initial(m.name)}</span>${info(m)}
+          ${m.is_admin ? '' : `<button class="btn sm ${m.is_hidden ? 'ok' : 'ghost'}" data-act="admHide" data-id="${m.id}" data-v="${m.is_hidden ? 0 : 1}">${m.is_hidden ? '元に戻す' : '非表示'}</button>`}<button class="btn sm ghost bad" data-act="admDel" data-id="${m.id}">削除</button></div>`;
+    return groups.map(([label, ms]) => `<div class="gh">${esc(label)}<span class="n">${ms.length}</span></div><div class="list">${ms.map(row).join('')}</div>`).join('')
         || '<div class="empty">メンバーがいません</div>';
 }
 function sheetAdmin(){
-    return sheetHead('メンバー管理') + `<div class="sheet-body"><p class="hint" style="margin:0 2px 4px">非表示にした人は、一覧・連絡・担当の選択に出なくなります。記録は消えません。いつでも元に戻せます。</p>${adminListHTML()}</div>`;
+    const sel = S.admSel, total = (S.adminList || []).length;
+    const head = sheetHead('メンバー管理');
+    if (sel) return head + `<div class="sheet-body"><div class="cptools" style="margin-top:0"><span class="cpc">削除する人を選んでください（${sel.size} / ${total}人）</span><button class="linkb" data-act="admSelAll">全員付ける</button><button class="linkb" data-act="admSelNone">全員外す</button></div>${adminListHTML()}</div>
+      <div class="cpbar"><button class="btn gray" data-act="admSelCancel" style="width:auto;min-width:96px">やめる</button><div class="cpn"><b>${sel.size}</b> 人</div><button class="btn bad" data-act="admSelDelete" style="width:auto;min-width:120px" ${sel.size ? '' : 'disabled'}>削除</button></div>`;
+    return head + `<div class="sheet-body"><p class="hint" style="margin:0 2px 8px">「非表示」は、一覧・メッセージ・担当の選択から外すだけで、記録は残り、あとで元に戻せます。「削除」は、アカウントとその人のタスク・記録・メッセージを完全に消します（管理者も削除できます）。</p>
+      ${total ? '<button class="btn ghost sm" data-act="admSelStart" style="margin-bottom:6px">まとめて選んで削除</button>' : ''}${adminListHTML()}</div>`;
 }
 async function loadAdminList(){
     try { S.adminList = await API.list('lab_members', { order: 'team.asc,created_at.asc' }); noteNames(S.adminList); }
     catch (e) { S.adminList = []; toast(/is_hidden/.test(e.message || '') ? '管理者用のSQL（supabase-admin.sql）がまだ実行されていません' : errMsg(e), 5000); }
 }
 function adminExit(){ S.admin = null; }
-async function openAdmin(){ S.adminList = null; pushSheet({ type: 'admin' }); await loadAdminList(); renderSheet(); }
+async function openAdmin(){ S.adminList = null; S.admSel = null; pushSheet({ type: 'admin' }); await loadAdminList(); renderSheet(); }
+/* メンバーの完全削除（管理者だけ。管理者アカウントも可）。タスク・記録・メッセージも一緒に消える */
+async function deleteMembers(ids){
+    const ms = ids.map(id => (S.adminList || []).find(x => x.id === id)).filter(Boolean);
+    if (!ms.length) return;
+    const self = ms.some(m => S.me && m.id === S.me.id);
+    const who = ms.length <= 3 ? ms.map(m => m.name + 'さん').join('、') : `${ms.length}人`;
+    if (!(await askBox({ title: `${who}を完全に削除しますか？`, ok: '完全に削除', danger: true, noText: true,
+        desc: 'アカウントと、その人のタスク・記録・メッセージを、データベースから消します。元に戻せません。\n（一覧から外したいだけのときは「非表示」にしてください）'
+            + (ms.some(m => m.is_admin) ? '\n管理者のアカウントも含まれます。' : '') + (self ? '\nあなた自身も含まれます。この端末はアカウント選択に戻ります。' : '') }))) return;
+    try {
+        if ((await API.rpc('lab_admin_check')) !== true) throw Object.assign(new Error('admin'), { status: 403 });
+        await API.delWhere('lab_members', { id: `in.(${ms.map(m => m.id).join(',')})` });
+    } catch (e) {
+        if (e.code === '42501' || e.status === 403) { adminAuthFailed(); return; }
+        toast(e.code === '23503' ? '削除用のSQL（supabase-delete.sql）がまだ実行されていません' : errMsg(e), 6000); return;
+    }
+    const gone = new Set(ms.map(m => m.id));
+    S.adminList = S.adminList.filter(x => !gone.has(x.id)); S.members = S.members.filter(x => !gone.has(x.id)); S.tasks = S.tasks.filter(t => !gone.has(t.assignee_id));
+    S.admSel = null;
+    if (self) { S.sheets = []; switchAccount(true); return; }
+    toast(`${ms.length}人を削除しました`);
+    renderSheet();
+    loadAdminBase().then(() => { loadAdmins(); render(); }); loadAdminTeams();
+}
 async function admHide(id, hide){
     const m = (S.adminList || []).find(x => x.id === id); if (!m) return;
     const self = S.me && id === S.me.id;
@@ -2006,6 +2054,13 @@ document.addEventListener('click', e => {
         case 'theme': ls.set('lab_theme', v); applyTheme(v); render(); break;
         case 'admOpen': openAdmin(); break;
         case 'admHide': admHide(el.dataset.id, el.dataset.v === '1'); break;
+        case 'admDel': deleteMembers([el.dataset.id]); break;
+        case 'admSelStart': S.admSel = new Set(); renderSheet(); break;
+        case 'admSelCancel': S.admSel = null; renderSheet(); break;
+        case 'admSelAll': S.admSel = new Set((S.adminList || []).map(m => m.id)); renderSheet(); break;
+        case 'admSelNone': S.admSel = new Set(); renderSheet(); break;
+        case 'admPick': { const id = el.dataset.id; if (S.admSel.has(id)) S.admSel.delete(id); else S.admSel.add(id); renderSheet(); break; }
+        case 'admSelDelete': deleteMembers([...S.admSel]); break;
         case 'teamOpen': openTeamSheet(); break;
         case 'tmCreate': createTeamOnly(); break;
         case 'admTeams': openAdminTeams(); break;
@@ -2037,6 +2092,7 @@ document.addEventListener('click', e => {
         case 'vt': setViewTeam(el.dataset.team); break;
         case 'teamPick': openTeamPicker(); break;
         case 'obAccounts': renderAccounts(); break;
+        case 'obPw': renderLogin(); break;
         case 'obName': renderRegName(); break;
         case 'obMode': { const t = $('#rTeam'); if (t) OB.newTeam = t.value; OB.mode = v; renderRegTeam(); break; }
         case 'obTeam': OB.team = el.dataset.team; renderRegTeam(); break;
@@ -2056,7 +2112,7 @@ async function enterAs(id){
     try {
         const all = await API.list('lab_members', { id: 'eq.' + id });
         if (!all[0]) return;
-        if (all[0].is_admin && !(await ensureAdminAccess())) return;
+        if (all[0].is_admin && !(await tryStoredAdmin())) { renderAdminLogin(all[0]); return; }
         setMe(all[0]);
     } catch (e) { handleErr(e); }
 }
@@ -2071,7 +2127,7 @@ async function renameMe(){
     } catch (e) { handleErr(e); }
 }
 function resetSession(){
-    stopTimers(); S.me = null; S.sheets = []; S.admin = null; S.viewTeam = ''; S.teamNames = [];
+    stopTimers(); S.me = null; S.sheets = []; S.admin = null; S.viewTeam = ''; S.teamNames = []; S.tab = 'tasks';
     $('#sheet').hidden = true; $('#sheet').innerHTML = '';
 }
 /* アカウント切替：パスワードは端末に残す（毎回入力しなくてよい） */
