@@ -378,6 +378,7 @@ const API = {
         return this.req('POST', table, { body: row, prefer: returning ? 'return=representation' : 'return=minimal' });
     },
     patch(table, id, obj){ return this.req('PATCH', table, { query: `id=eq.${encodeURIComponent(id)}`, body: obj, prefer: 'return=minimal' }); },
+    patchWhere(table, params, obj){ return this.req('PATCH', table, { query: this.q(params), body: obj, prefer: 'return=minimal' }); },
     del(table, id){ return this.req('DELETE', table, { query: `id=eq.${encodeURIComponent(id)}`, prefer: 'return=minimal' }); },
     rpc(name){ return this.req('POST', 'rpc/' + name, { body: {} }); }
 };
@@ -390,6 +391,7 @@ const S = {
     memoDate: today(), memoMode: 'day', memoScope: 'me', memoData: { notes: [], logs: [] }, memoLoaded: false,
     dl: { from: today().slice(0, 8) + '01', to: today(), scope: 'all' },
     sheets: [], room: null, roomTimer: null,
+    tm: { loaded: false, mode: 'select', sel: '', teams: [], err: '' },
     unread: {}, newIds: new Set(), booted: false
 };
 const mem = id => S.members.find(m => m.id === id);
@@ -472,7 +474,7 @@ async function enterWho(){
     renderAccounts();
 }
 const obVisible = () => OB.all.filter(m => !m.is_hidden);
-const obTeams = () => { const c = {}; obVisible().forEach(m => { c[m.team] = (c[m.team] || 0) + 1; }); return Object.entries(c); };
+const obTeams = () => { const c = {}; obVisible().filter(m => m.team).forEach(m => { c[m.team] = (c[m.team] || 0) + 1; }); return Object.entries(c); };
 
 /* アカウント選択 */
 function renderAccounts(){
@@ -480,7 +482,7 @@ function renderAccounts(){
     if (!all.length) { renderRegName(); return; }
     const teams = [...new Set(all.map(m => m.team))];
     shell(`${obHead()}<div class="ob-body"><h2 class="ob-h">アカウント選択</h2>
-      ${teams.map(t => `<div class="gh" style="margin-top:0">${esc(t)}</div><div class="list" style="margin-bottom:14px">${all.filter(m => m.team === t).map(m =>
+      ${teams.map(t => `<div class="gh" style="margin-top:0">${esc(teamLabel(t))}</div><div class="list" style="margin-bottom:14px">${all.filter(m => m.team === t).map(m =>
         `<button class="row" data-act="pickMe" data-id="${m.id}"><span class="av">${initial(m.name)}</span><span class="rb"><span class="rt">${esc(m.name)}</span></span>${svg('chev', 16)}</button>`).join('')}</div>`).join('')}
       <button class="btn ghost" style="margin-top:6px" data-act="regStart">新規登録</button>
       ${footLinks(true)}</div>`);
@@ -574,7 +576,8 @@ function buildFrame(){
 }
 function renderTop(){
     const title = { tasks: 'タスク', memo: '記録', chat: '連絡', more: '設定' }[S.tab];
-    const sub = { tasks: `${S.me.team} · ${fmtMD(today())}`, memo: S.me.team, chat: S.me.team, more: S.me.name }[S.tab];
+    const tl = teamLabel(S.me.team);
+    const sub = { tasks: `${tl} · ${fmtMD(today())}`, memo: tl, chat: tl, more: S.me.name }[S.tab];
     $('#top').innerHTML = `<div class="tw"><h1>${esc(title)}</h1><div class="st">${esc(sub)}</div></div><button class="icon-btn" data-act="reload" aria-label="更新">${svg('refresh', 20)}</button>`;
 }
 function renderTabbar(){
@@ -658,9 +661,10 @@ function segHTML(list){
     return `<div class="seg">${b('open', '進行中')}${b('done', '完了')}${b('dropped', '破棄')}</div>`;
 }
 function viewTasks(){
-    const f = S.teamFilter === 'me' ? 'me' : 'all';
+    const teamless = !S.me.team;
+    const f = teamless || S.teamFilter === 'me' ? 'me' : 'all';
     const base = f === 'me' ? S.tasks.filter(t => t.assignee_id === S.me.id) : S.tasks;
-    const scope = `<div class="seg" style="margin-bottom:8px"><button data-act="filter" data-v="me" class="${f === 'me' ? 'on' : ''}">自分</button><button data-act="filter" data-v="all" class="${f === 'all' ? 'on' : ''}">チーム全員</button></div>`;
+    const scope = teamless ? '' : `<div class="seg" style="margin-bottom:8px"><button data-act="filter" data-v="me" class="${f === 'me' ? 'on' : ''}">自分</button><button data-act="filter" data-v="all" class="${f === 'all' ? 'on' : ''}">チーム全員</button></div>`;
     return `${scope}${segHTML(base)}${taskListHTML(base.filter(t => t.status === S.taskStatus), true)}`;
 }
 
@@ -681,7 +685,7 @@ function entryHTML(i){
     if (i.type === 'note') return `<div class="ent"><span class="et">${fmtHM(i.at)}</span><div class="eb"><div class="eh"><span class="k k-memo">メモ</span>${who}${recTools(i.rec, 'note')}</div><div class="tx">${esc(i.body)}</div></div></div>`;
     const t = S.tasks.find(x => x.id === i.task_id);
     return `<div class="ent"><span class="et">${fmtHM(i.at)}</span><div class="eb"><div class="eh"><span class="k k-${i.kind}">${KIND[i.kind] || i.kind}</span>${who}${recTools(i.rec, 'log')}</div>
-        <a class="tk" data-act="openTask" data-id="${i.task_id}">${t ? esc(t.title) : '（タスク）'}</a>${i.body ? `<div class="tx">${esc(i.body)}</div>` : ''}</div></div>`;
+        ${t ? `<a class="tk" data-act="openTask" data-id="${i.task_id}">${esc(t.title)}</a>` : '<span class="tk" style="color:var(--sub);font-weight:500">（このチームにないタスク）</span>'}${i.body ? `<div class="tx">${esc(i.body)}</div>` : ''}</div></div>`;
 }
 function viewMemo(){
     const d = S.memoDate, mode = S.memoMode, sc = S.memoScope;
@@ -721,11 +725,11 @@ function viewMemo(){
 const KIND = { create: '作成', note: '進捗', done: '完了', drop: '破棄', reopen: '再開', assign: '担当変更', due: '期限変更' };
 async function loadMemo(){
     const [from, to] = memoRange(); const key = from + '|' + to;
-    const team = 'eq.' + S.me.team;
+    const who = inMembers();
     try {
         const [notes, logs] = await Promise.all([
-            API.all('lab_notes', { team, and: `(note_date.gte.${from},note_date.lte.${to})`, order: 'created_at.asc' }),
-            API.all('lab_logs', { team, and: `(log_date.gte.${from},log_date.lte.${to})`, order: 'created_at.asc' })
+            API.all('lab_notes', { member_id: who, and: `(note_date.gte.${from},note_date.lte.${to})`, order: 'created_at.asc' }),
+            API.all('lab_logs', { member_id: who, and: `(log_date.gte.${from},log_date.lte.${to})`, order: 'created_at.asc' })
         ]);
         const [f2, t2] = memoRange(); if (key !== f2 + '|' + t2) return;
         S.memoData = { notes, logs }; S.memoLoaded = true;
@@ -801,6 +805,7 @@ function showHistory(type, id){
 
 /* ---------- 連絡 ---------- */
 function viewChat(){
+    if (!S.me.team) return '<div class="empty"><b>チームに参加していません</b>「設定」からチームに参加すると、連絡できます</div>';
     const others = visMembers().filter(m => m.id !== S.me.id);
     const un = k => S.unread[k] ? `<span class="un">${S.unread[k]}</span>` : '';
     return `<div class="gh" style="margin-top:4px">チーム</div>
@@ -813,7 +818,12 @@ function viewChat(){
 function viewMore(){
     const d = S.dl; const cur = THEMES[ls.get('lab_theme', 'solar')] ? ls.get('lab_theme', 'solar') : 'solar';
     const chev = svg('chev', 16);
-    return `<div class="card acc"><span class="av lg">${initial(S.me.name)}</span><div class="rb"><b>${esc(S.me.name)}</b><span class="t">${esc(S.me.team)}</span></div><button class="btn gray sm" data-act="rename">名前変更</button></div>
+    return `<div class="card acc"><span class="av lg">${initial(S.me.name)}</span><div class="rb"><b>${esc(S.me.name)}</b><span class="t">${esc(teamLabel(S.me.team))}</span></div><button class="btn gray sm" data-act="rename">名前変更</button></div>
+      <div class="gh">チーム</div>
+      <div class="list">${S.me.team ? `<button class="row" data-act="teamRename"><span class="rb"><span class="rt">チーム名を変更</span><span class="rm">現在：${esc(S.me.team)}（メンバー全員に反映）</span></span>${chev}</button>` : ''}
+        <button class="row" data-act="teamOpen"><span class="rb"><span class="rt">${S.me.team ? 'チームを変更' : 'チームに参加'}</span><span class="rm">${S.me.team ? '別のチームに参加、または新しいチームを作成' : '既存のチームに参加、または新しいチームを作成'}</span></span>${chev}</button>
+        ${S.me.team ? `<button class="row" data-act="teamLeave"><span class="rb"><span class="rt" style="color:var(--bad)">チームから脱退</span></span>${chev}</button>` : ''}</div>
+      <p class="hint" style="margin:6px 4px 0">記録とタスクはあなたに属します。チームを移ると、過去の分も含めて一緒に移動します。</p>
       <div class="gh">テーマ</div>
       <div class="themes">${Object.entries(THEMES).map(([id, t]) => `<button class="theme ${cur === id ? 'on' : ''}" data-act="theme" data-v="${id}" style="background:${t.bg};color:${t.ink};border-color:${cur === id ? t.pri : t.line}">
           <span class="tn">${esc(t.n)}</span><span class="ts" style="color:${t.sub}">${esc(t.s)}</span>
@@ -844,10 +854,10 @@ async function download(){
     S.dl.from = from; S.dl.to = to;
     const btn = document.querySelector('[data-act="download"]'); btn.disabled = true; btn.textContent = '作成中…';
     try {
-        const team = 'eq.' + S.me.team;
+        const who = inMembers();
         const [logs, notes] = await Promise.all([
-            API.all('lab_logs', { team, and: `(log_date.gte.${from},log_date.lte.${to})`, order: 'log_date.asc,created_at.asc' }),
-            API.all('lab_notes', { team, and: `(note_date.gte.${from},note_date.lte.${to})`, order: 'note_date.asc,created_at.asc' })
+            API.all('lab_logs', { member_id: who, and: `(log_date.gte.${from},log_date.lte.${to})`, order: 'log_date.asc,created_at.asc' }),
+            API.all('lab_notes', { member_id: who, and: `(note_date.gte.${from},note_date.lte.${to})`, order: 'note_date.asc,created_at.asc' })
         ]);
         if (!S.tasks.length) await loadTasks();
         const tmap = new Map(S.tasks.map(t => [t.id, t]));
@@ -864,7 +874,7 @@ async function download(){
         const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = `研究記録_${S.me.team}_${from.replace(/-/g, '')}-${to.replace(/-/g, '')}.csv`;
+        a.download = `研究記録_${teamLabel(S.me.team)}_${from.replace(/-/g, '')}-${to.replace(/-/g, '')}.csv`;
         document.body.appendChild(a); a.click(); a.remove();
         setTimeout(() => URL.revokeObjectURL(a.href), 4000);
         toast(`${rows.length}件をダウンロードしました`);
@@ -875,8 +885,24 @@ async function download(){
 /* ============================================================
    データ読み込み
    ============================================================ */
-async function loadMembers(){ S.members = await API.list('lab_members', { team: 'eq.' + S.me.team, order: 'created_at.asc' }); }
-async function loadTasks(){ S.tasks = await API.all('lab_tasks', { team: 'eq.' + S.me.team, order: 'created_at.desc' }); }
+/* 記録・タスクは個人に属する：今のチームのメンバーの分を表示する（チームを移ると、過去の分ごとついてくる） */
+const teamLabel = t => t || '所属なし';
+const memberIds = () => { const ids = S.members.map(m => m.id); return ids.includes(S.me.id) ? ids : [...ids, S.me.id]; };
+const inMembers = () => `in.(${memberIds().join(',')})`;
+async function loadMembers(){
+    S.members = S.me.team ? await API.list('lab_members', { team: 'eq.' + S.me.team, order: 'created_at.asc' })
+                          : await API.list('lab_members', { id: 'eq.' + S.me.id });   // 所属なし：自分だけ
+}
+async function loadTasks(){ S.tasks = await API.all('lab_tasks', { assignee_id: inMembers(), order: 'created_at.desc' }); }
+/* 他の端末でチームが変わった／名前が変わったときに、この端末の情報を合わせる */
+function adoptMe(m){
+    const teamChanged = m.team !== S.me.team;
+    S.me = { id: m.id, name: m.name, team: m.team }; ls.set('lab_me', S.me);
+    if (!teamChanged) return;
+    S.members = []; S.tasks = []; S.logs = {}; S.memoData = { notes: [], logs: [] }; S.memoLoaded = false;
+    S.unread = {}; S.newIds = new Set(); S.teamFilter = 'all'; S.sheets = [];
+    ls.del('lab_cache'); $('#sheet').hidden = true; $('#sheet').innerHTML = '';
+}
 function saveCache(){ ls.set('lab_cache', { team: S.me.team, members: S.members, tasks: S.tasks }); }
 function updateNew(){
     const key = 'lab_seen_' + S.me.id;
@@ -892,13 +918,16 @@ function markSeen(id){
 }
 async function refreshAll(){
     try {
-        await Promise.all([loadMembers(), loadTasks()]);
-        if (!mem(S.me.id)) {
+        const self = (await API.list('lab_members', { id: 'eq.' + S.me.id }))[0];
+        if (!self) {
             // RLSでは間違ったパスワードだと「空」が返るだけ（エラーにならない）。先にパスワードを確認する
             if ((await API.rpc('lab_check')) !== true) throw Object.assign(new Error('パスワードが確認できません'), { status: 401 });
             toast('登録が見つかりません。アカウントを選び直してください', 4000); switchAccount(true); return;
         }
-        if (mem(S.me.id).is_hidden) { toast('このアカウントは使えなくなっています。管理者に連絡してください', 5000); switchAccount(true); return; }
+        if (self.is_hidden) { toast('このアカウントは使えなくなっています。管理者に連絡してください', 5000); switchAccount(true); return; }
+        if (self.team !== S.me.team || self.name !== S.me.name) { adoptMe(self); render(); }
+        await loadMembers();
+        await loadTasks();
         saveCache(); updateNew();
         softRender();
         if (S.tab === 'memo') loadMemo();
@@ -937,6 +966,7 @@ function renderSheet(){
     else if (top.type === 'form') inner = sheetForm(top);
     else if (top.type === 'room') inner = sheetRoom();
     else if (top.type === 'admin') inner = sheetAdmin();
+    else if (top.type === 'team') inner = sheetTeam();
     el.innerHTML = `<div class="sheet-in">${inner}</div>`;
     Object.entries(keep).forEach(([id, v]) => { const x = el.querySelector('#' + id); if (x && v !== '' && x.tagName !== 'SELECT') x.value = v; });
     if (top.type === 'room') { const m = $('#msgs'); if (m) m.scrollTop = m.scrollHeight; }
@@ -1082,11 +1112,82 @@ async function saveTask(){
     } catch (e) { btn.disabled = false; handleErr(e); }
 }
 
+/* ---------- チームの作成・参加・移動・脱退・名前変更 ----------
+   チームは「メンバーの所属」だけで決まる。記録・タスクは個人に属し、所属が変われば一緒に移る。 */
+async function openTeamSheet(){
+    S.tm = { loaded: false, mode: 'select', sel: '', teams: [], err: '' };
+    pushSheet({ type: 'team' });
+    try {
+        const all = await API.list('lab_members', { select: 'id,name,team,is_hidden' });
+        const c = {}; all.filter(m => !m.is_hidden && m.team).forEach(m => { c[m.team] = (c[m.team] || 0) + 1; });
+        S.tm.teams = Object.entries(c).sort((a, b) => a[0].localeCompare(b[0], 'ja')); S.tm.loaded = true;
+    } catch (e) { handleErr(e); S.tm.loaded = true; }
+    renderSheet();
+}
+function sheetTeam(){
+    const tm = S.tm, title = S.me.team ? 'チーム変更' : 'チーム参加';
+    if (!tm.loaded) return sheetHead(title) + '<div class="sheet-body"><div class="empty">読み込み中…</div></div>';
+    const teams = tm.teams.filter(([t]) => t !== S.me.team);
+    const isNew = tm.mode === 'new' || !teams.length;
+    return sheetHead(title) + `<div class="sheet-body">
+      ${S.me.team ? `<p class="hint" style="margin:0 2px 10px">現在のチーム：<b>${esc(S.me.team)}</b></p>` : ''}
+      ${teams.length ? `<div class="seg" style="margin-bottom:12px"><button data-act="tmMode" data-v="select" class="${isNew ? '' : 'on'}">チーム選択</button><button data-act="tmMode" data-v="new" class="${isNew ? 'on' : ''}">チーム登録</button></div>` : ''}
+      ${isNew ? `<label class="l" for="tNew" style="margin-top:0">新しいチーム名</label><input id="tNew" class="inp" maxlength="20" autocomplete="off">`
+              : `<div class="list">${teams.map(([t, n]) => `<button class="row ${tm.sel === t ? 'sel' : ''}" data-act="tmSel" data-team="${esc(t)}"><span class="radio"></span><span class="rb"><span class="rt">${esc(t)}</span></span><span class="cnt">${n}人</span></button>`).join('')}</div>`}
+      <p class="err" id="tErr" ${tm.err ? '' : 'hidden'}>${esc(tm.err || '')}</p>
+      <p class="hint" style="margin:12px 2px 0">あなたの記録・タスクは、過去の分も含めて一緒に移動します。${S.me.team ? '元のチームからは見えなくなります。' : ''}</p>
+      <div style="height:14px"></div><button class="btn" data-act="tmGo">${isNew ? '作成して移動' : '移動'}</button></div>`;
+}
+async function moveTeam(){
+    const tm = S.tm, teams = tm.teams.filter(([t]) => t !== S.me.team);
+    const isNew = tm.mode === 'new' || !teams.length;
+    const nm = isNew ? ($('#tNew').value.trim()) : tm.sel;
+    const fail = m => { tm.err = m; renderSheet(); };
+    tm.err = '';
+    if (!nm) return fail(isNew ? 'チーム名を入力してください' : 'チームを選択してください');
+    if (isNew && nm === S.me.team) return fail('いま所属しているチームです');
+    if (isNew && tm.teams.some(([t]) => t === nm)) return fail('そのチーム名はすでにあります。「チーム選択」から選んでください');
+    const old = S.me.team;
+    const ok = await askBox({ title: isNew ? `新しいチーム「${nm}」を作って移動しますか？` : `「${nm}」に移動しますか？`, ok: '移動する', noText: true,
+        desc: old ? `あなたの記録・タスクも一緒に移動します。「${old}」のメンバーからは見えなくなります。` : 'あなたの記録・タスクが、このチームで見られるようになります。' });
+    if (!ok) return;
+    try { await API.patch('lab_members', S.me.id, { team: nm }); }
+    catch (e) { return fail((e.status === 409 || e.code === '23505') ? '移動先に同じ名前のメンバーがいます。設定で名前を変えてから、もう一度お試しください' : errMsg(e)); }
+    closeSheet(); await new Promise(r => setTimeout(r, 80));
+    adoptMe({ id: S.me.id, name: S.me.name, team: nm });
+    startMain();
+    toast(isNew ? `チーム「${nm}」を作りました` : `「${nm}」に移動しました`, 3200);
+}
+async function leaveTeam(){
+    const old = S.me.team; if (!old) return;
+    if (!(await askBox({ title: `「${old}」から脱退しますか？`, ok: '脱退する', danger: true, noText: true,
+        desc: 'あなたの記録・タスクは、このチームから見えなくなります（消えません）。あとで別のチームに参加すると、過去の分も一緒に移ります。' }))) return;
+    try { await API.patch('lab_members', S.me.id, { team: '' }); }
+    catch (e) { toast((e.status === 409 || e.code === '23505') ? '同じ名前の「所属なし」のアカウントがあります。名前を変えてから、もう一度お試しください' : errMsg(e), 5000); return; }
+    adoptMe({ id: S.me.id, name: S.me.name, team: '' });
+    startMain();
+    toast('チームから脱退しました', 3200);
+}
+async function renameTeam(){
+    const old = S.me.team; if (!old) return;
+    const r = await askBox({ title: 'チーム名を変更', desc: 'メンバー全員に反映されます。', input: 'text', text: old, required: true, ok: '変更' });
+    if (!r || r.text === old) return;
+    const nm = r.text;
+    try {
+        const all = await API.list('lab_members', { select: 'team' });
+        if (all.some(m => m.team === nm)) { toast('そのチーム名はすでにあります', 4000); return; }
+        await API.patchWhere('lab_members', { team: 'eq.' + old }, { team: nm });
+        await API.patchWhere('lab_messages', { team: 'eq.' + old, to_id: 'is.null' }, { team: nm });   // チームの連絡も新しい名前で続く
+    } catch (e) { handleErr(e); return; }
+    S.me.team = nm; ls.set('lab_me', S.me); S.members.forEach(m => { m.team = nm; }); saveCache();
+    render(); toast('チーム名を変更しました');
+}
+
 /* ---------- 管理者モード（メンバーの非表示・復元） ---------- */
 function adminListHTML(){
     if (!S.adminList) return '<div class="empty">読み込み中…</div>';
     const teams = [...new Set(S.adminList.map(m => m.team))];
-    return teams.map(t => `<div class="gh">${esc(t)}</div><div class="list">${S.adminList.filter(m => m.team === t).map(m => `
+    return teams.map(t => `<div class="gh">${esc(teamLabel(t))}</div><div class="list">${S.adminList.filter(m => m.team === t).map(m => `
         <div class="row static"><span class="av">${initial(m.name)}</span><span class="rb"><span class="rt">${esc(m.name)}${S.me && m.id === S.me.id ? '<span class="tag">この端末</span>' : ''}${m.is_hidden ? '<span class="tag">非表示中</span>' : ''}</span></span>
           <button class="btn sm ${m.is_hidden ? 'ok' : 'ghost bad'}" data-act="admHide" data-id="${m.id}" data-v="${m.is_hidden ? 0 : 1}">${m.is_hidden ? '元に戻す' : '非表示'}</button></div>`).join('')}</div>`).join('')
         || '<div class="empty">メンバーがいません</div>';
@@ -1173,7 +1274,7 @@ function updateMsgs(force){
 function roomQueries(key, extra){
     const team = 'eq.' + S.me.team;
     if (key === 'team') return [{ team, to_id: 'is.null', ...extra }];
-    return [{ team, sender_id: 'eq.' + S.me.id, to_id: 'eq.' + key, ...extra }, { team, sender_id: 'eq.' + key, to_id: 'eq.' + S.me.id, ...extra }];
+    return [{ sender_id: 'eq.' + S.me.id, to_id: 'eq.' + key, ...extra }, { sender_id: 'eq.' + key, to_id: 'eq.' + S.me.id, ...extra }];
 }
 async function pollRoom(initial){
     const r = S.room; if (!r) return;
@@ -1227,10 +1328,12 @@ async function checkUnread(){
     if (!S.me || !S.pass) return;
     try {
         const since = new Date(Date.now() - 14 * 864e5).toISOString();
-        const [dm, tm] = await Promise.all([
+        const [dm0, tm] = await Promise.all([
             API.list('lab_messages', { select: 'sender_id,to_id,created_at', to_id: 'eq.' + S.me.id, created_at: 'gt.' + since, order: 'created_at.asc', limit: 500 }),
-            API.list('lab_messages', { select: 'sender_id,to_id,created_at', team: 'eq.' + S.me.team, to_id: 'is.null', sender_id: 'neq.' + S.me.id, created_at: 'gt.' + since, order: 'created_at.asc', limit: 500 })
+            S.me.team ? API.list('lab_messages', { select: 'sender_id,to_id,created_at', team: 'eq.' + S.me.team, to_id: 'is.null', sender_id: 'neq.' + S.me.id, created_at: 'gt.' + since, order: 'created_at.asc', limit: 500 }) : Promise.resolve([])
         ]);
+        const okKeys = new Set(visMembers().map(m => m.id));
+        const dm = dm0.filter(m => okKeys.has(m.sender_id));   // 今のチームのメンバーからのものだけ数える
         const all = [...dm.map(m => ({ key: m.sender_id, at: m.created_at })), ...tm.map(m => ({ key: 'team', at: m.created_at }))];
         let rm = readMap();
         if (!rm) { // 初回は「いままでのメッセージは既読」として基準を作る
@@ -1253,7 +1356,7 @@ function askBox({ title, desc, placeholder, ok = 'OK', danger, date, dateLabel, 
     return new Promise(resolve => {
         const m = $('#modal'); m.hidden = false;
         m.innerHTML = `<div class="dlg"><h2>${esc(title)}</h2>${desc ? `<p class="hint" style="margin:0 0 4px">${esc(desc)}</p>` : ''}
-          ${noText ? '' : input ? `<input id="dlgText" class="inp" type="${input}" autocomplete="off" autocapitalize="off" style="margin-top:10px" placeholder="${esc(placeholder || '')}">`
+          ${noText ? '' : input ? `<input id="dlgText" class="inp" type="${input}" autocomplete="off" autocapitalize="off" style="margin-top:10px" placeholder="${esc(placeholder || '')}" value="${esc(text || '')}">`
                                     : `<textarea id="dlgText" class="inp" style="margin-top:10px" placeholder="${esc(placeholder || '')}">${esc(text || '')}</textarea>`}
           ${date ? `<label class="l" for="dlgDate">${esc(dateLabel || '日付')}</label><input id="dlgDate" class="inp" type="date" value="${date}">` : ''}
           <p class="err" id="dlgErr" hidden>内容を入力してください</p>
@@ -1314,6 +1417,12 @@ document.addEventListener('click', e => {
         case 'admHide': admHide(el.dataset.id, el.dataset.v === '1'); break;
         case 'admWho': adminLogin().then(async ok => { if (ok) { S.adminShell = true; S.adminList = null; renderAdminShell(); await loadAdminList(); renderAdminShell(); } }); break;
         case 'admBack': S.adminShell = false; adminExit(); enterWho(); break;
+        case 'teamOpen': openTeamSheet(); break;
+        case 'tmMode': S.tm.mode = v; S.tm.err = ''; renderSheet(); break;
+        case 'tmSel': S.tm.sel = el.dataset.team; S.tm.err = ''; renderSheet(); break;
+        case 'tmGo': moveTeam(); break;
+        case 'teamLeave': leaveTeam(); break;
+        case 'teamRename': renameTeam(); break;
         case 'rename': renameMe(); break;
         case 'switchAcc': switchAccount(); break;
         case 'forgetPw': forgetPassword(); break;
