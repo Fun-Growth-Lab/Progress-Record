@@ -819,7 +819,8 @@ function taskRow(t, showWho){
     const who = mine ? '<span class="me-tag">自分</span>' : `<span>${nameH(t.assignee_id)}</span>`;
     const lab = dueLabel(t);
     const dueHTML = t.status === 'open' && t.due_date ? `<span class="due ${di.cls}">${fmtMD(t.due_date)}<span class="dl">${esc(lab)}</span></span>` : (txt ? `<span class="due">${esc(txt)}</span>` : '');
-    const meta = [dueHTML, showWho ? who : ''].filter(Boolean).join('');
+    const teamTag = IS_ADMIN() && !S.viewTeam && mem(t.assignee_id) ? `<span>${esc(teamLabel(mem(t.assignee_id).team))}</span>` : '';
+    const meta = [dueHTML, showWho ? who : '', teamTag].filter(Boolean).join('');
     return `<button class="row ${mine ? 'mine' : ''}" data-act="openTask" data-id="${t.id}"><span class="dot ${di.cls === 'ok' ? '' : di.cls}"></span>
         <span class="rb"><span class="rt">${esc(t.title)}${S.newIds.has(t.id) ? '<span class="new">NEW</span>' : ''}</span>${meta ? `<span class="rm">${meta}</span>` : ''}</span>${svg('chev', 16)}</button>`;
 }
@@ -850,7 +851,6 @@ function teamSelectHTML(kind){
 }
 function viewTasksAdmin(){
     const chips = '';
-    if (!S.viewTeam) return teamSelectHTML('tasks');   // 全チーム：チームを選ぶ画面
     return `${segHTML(S.tasks)}${taskListHTML(S.tasks.filter(t => taskBucket(t) === S.taskStatus), true)}`;
 }
 
@@ -1257,7 +1257,8 @@ const inMembers = () => `in.(${memberIds().join(',')})`;
 async function loadMembers(){
     if (IS_ADMIN()) {   // 管理者：選んだチームのメンバー
         const t = S.viewTeam;
-        S.members = !t ? [] : t === '__none__' ? (await API.list('lab_members', { team: 'eq.', order: 'created_at.asc' })).filter(m => !m.is_admin)
+        S.members = !t ? (S.adminAll ? S.adminAll.all : []).filter(m => !m.is_admin && S.teamNames.includes(m.team))   // 全チーム：今あるチームのメンバー全員
+                       : t === '__none__' ? (await API.list('lab_members', { team: 'eq.', order: 'created_at.asc' })).filter(m => !m.is_admin)
                                               : await API.list('lab_members', { team: 'eq.' + t, order: 'created_at.asc' });
     } else {
         S.members = S.me.team ? await API.list('lab_members', { team: 'eq.' + S.me.team, order: 'created_at.asc' })
@@ -1265,7 +1266,14 @@ async function loadMembers(){
     }
     noteNames(S.members);
 }
-async function loadTasks(){ S.tasks = S.members.length || !IS_ADMIN() ? await API.all('lab_tasks', { assignee_id: inMembers(), order: 'created_at.desc' }) : []; }
+async function loadTasks(){
+    if (IS_ADMIN() && !S.viewTeam) {   // 全チーム：全タスクを取って、今あるチームのメンバーの分だけ残す
+        const ids = new Set(S.members.map(m => m.id));
+        S.tasks = ids.size ? (await API.all('lab_tasks', { order: 'created_at.desc' })).filter(t => ids.has(t.assignee_id)) : [];
+        return;
+    }
+    S.tasks = S.members.length || !IS_ADMIN() ? await API.all('lab_tasks', { assignee_id: inMembers(), order: 'created_at.desc' }) : [];
+}
 /* 他の端末でチームや名前が変わったときに、この端末の情報を合わせる */
 function adoptMe(m){
     const nm = meFrom(m);
@@ -1315,8 +1323,8 @@ async function setViewTeam(name){
     S.viewTeam = name; S.members = []; S.tasks = []; S.logs = {}; S.memoData = { notes: [], logs: [] }; S.memoLoaded = false;
     render();
     try {
-        if (!name) { await loadAdminTeams(); render(); return; }
         await loadMembers(); await loadTasks(); render();
+        if (!name) loadAdminTeams();
         if (S.tab === 'memo') loadMemo();
     } catch (e) { handleErr(e); }
 }
@@ -2065,7 +2073,6 @@ document.addEventListener('click', e => {
     switch (a) {
         case 'tab': S.tab = v; render(); $('#main').scrollTop = 0;
             if (v === 'memo') { S.memoLoaded = false; render(); if (IS_ADMIN() && !S.viewTeam) loadAdminTeams().then(() => render()); else loadMemo(); }
-            if (v === 'tasks' && IS_ADMIN() && !S.viewTeam) loadAdminTeams().then(() => render());
             if (v === 'chat') { checkUnread(); if (IS_ADMIN()) loadAdminChat(); }
             if (v === 'tasks') refreshAll();
             if (v === 'events') loadEvents().then(() => softRender()).catch(e => handleErr(e, true));
