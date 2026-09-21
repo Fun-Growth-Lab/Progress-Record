@@ -215,6 +215,17 @@ select.inp{background-image:linear-gradient(45deg,transparent 50%,var(--sub) 50%
 .evbanner svg{flex:none;color:var(--pri)}
 .evbanner .rb{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
 .evbanner .evc2{flex:none;font-weight:700;color:var(--pri);font-size:13px}
+#tour{position:fixed;inset:0;z-index:80;background:rgba(2,6,16,.66);display:flex;align-items:center;justify-content:center;padding:20px}
+.tourcard{width:100%;max-width:420px;background:var(--card2);border:1px solid var(--line);border-radius:20px;padding:24px 20px 18px;text-align:center}
+.tourcard h2{font-size:20px;margin:12px 0 8px}
+.tourb{font-size:14.5px;line-height:1.75;color:var(--ink);text-align:left}
+.tourb b{color:var(--pri)}
+.touric{width:64px;height:64px;margin:0 auto;border-radius:32px;background:var(--pri-l);color:var(--pri);display:flex;align-items:center;justify-content:center}
+.tourdemo{display:inline-flex;align-items:center;gap:4px;margin:8px 0;padding:6px 14px;border:1px solid var(--line);border-radius:12px;background:var(--card);font-size:18px;font-weight:700}
+.tourdemo svg{color:var(--pri)}
+.dots{display:flex;justify-content:center;gap:6px;margin-top:16px}
+.dots i{width:7px;height:7px;border-radius:4px;background:var(--line)}
+.dots i.on{width:18px;background:var(--pri)}
 .cptools{display:flex;align-items:center;gap:4px;margin:0 2px 2px}
 .cptools .cpc{flex:1;font-size:13px;color:var(--sub)}
 .cbtn{flex:none;display:flex;padding:8px;margin:-8px}
@@ -262,6 +273,7 @@ select.inp{background-image:linear-gradient(45deg,transparent 50%,var(--sub) 50%
 <body>
 <div id="app"></div>
 <div id="sheet" hidden></div>
+<div id="tour" hidden></div>
 <div id="modal" hidden></div>
 <div id="toast" hidden></div>
 
@@ -715,6 +727,7 @@ function startMain(){
     checkUnread();
     startTimers();
     S.booted = true;
+    if (!ls.get('lab_tour_' + S.me.id)) setTimeout(() => { if (S.me && !S.sheets.length && $('#tour').hidden) openTour(); }, 700);   // はじめての人には、使い方を最初に見せる
 }
 function buildFrame(){
     const app = $('#app'); app.style.height = '';
@@ -1128,6 +1141,44 @@ function viewChat(){
     return html;
 }
 
+/* ---------- 使い方（はじめての人に最初に見せる。設定からもう一度見られる） ---------- */
+const TOUR = {
+    member: [
+        { ic: 'tasks', t: '研究進捗アプリへようこそ', b: 'チームの<b>タスク・予定・記録・メッセージ</b>を、みんなで共有するアプリです。下の5つのタブを、順に紹介します。' },
+        { ic: 'tasks', t: 'タスク', b: '期限つきのタスクを作って、<b>チームの誰にでも</b>渡せます。<br>「自分／チーム全員」を切り替え、「進行中・期限切れ・完了」に分けて見られます。右下の<b>＋</b>で追加します。' },
+        { ic: 'flag', t: '予定', b: '試合の日などを「<b>あと○日</b>」で確認できます。複数日の予定（合宿など）も作れます。<br><b>自分のチームの予定</b>は、誰でも追加・編集できます。' },
+        { ic: 'memo', t: '記録', b: '<b>今日やったこと・メモ・気づき</b>を書きます。日付を選んで、日／週／月ごとに振り返れます。自分の記録は、あとから編集できます。' },
+        { ic: 'chat', t: 'メッセージ', b: '<b>同じチームの人と管理者</b>に、個別にメッセージを送れます。「新規メッセージ」では、名前にチェックを付けて、複数の人に一度に送れます。<br>届いたら、タブに赤い印が付きます。' },
+        { ic: 'more', t: '設定', b: '<b>チームの作成・参加・移動・脱退</b>、名前の変更、色のテーマ、CSVのダウンロードができます。<br>タスクと記録は<b>あなたのもの</b>なので、チームを移っても一緒に移ります。<br>この説明は、「設定」の「使い方を見る」でいつでも見られます。' }
+    ],
+    admin: [
+        { ic: 'tasks', t: '管理者としてようこそ', b: '管理者は、<b>どのチームにも所属せず</b>、全チームの状況を見て、まとめて管理します。下のタブと、チームの選び方を紹介します。' },
+        { ic: 'team', t: 'チームの選び方', b: '画面の一番上の<b>チーム名（▾）</b>をタップすると、下からチームの一覧が出ます。<div class="tourdemo"><span>全チーム</span><span style="color:var(--pri)">▾</span></div>タスク・予定・記録・メッセージで<b>共通</b>です。<br>「全チーム」のときは、タスクと記録は、チームを選ぶ画面になります。' },
+        { ic: 'tasks', t: 'タスク・記録', b: '選んだチームの、タスクと記録を<b>閲覧</b>できます（管理者は書き込みません）。タスクは「進行中・期限切れ・完了」で見られます。' },
+        { ic: 'flag', t: '予定', b: '「全チーム」では、全チームの予定がチーム名つきで並びます。<br>予定を作るときは、<b>チームにチェック</b>を付けて選びます（最初は全チーム）。共通の予定を、まとめて作れます。' },
+        { ic: 'chat', t: 'メッセージ', b: '「新規メッセージ」で、<b>チームごとにまとめた全員</b>の名前が並びます。チェックを付け外しして、選んだ人に個別に送れます。名前をタップすると、その人との会話を開けます。' },
+        { ic: 'more', t: '設定', b: '<b>チーム管理</b>（作成・名前の変更・アーカイブ・完全な削除）と、<b>メンバー管理</b>（非表示・削除）ができます。<br>この説明は、「設定」の「使い方を見る」でいつでも見られます。' }
+    ]
+};
+function openTour(){ S.tour = { i: 0 }; renderTour(); }
+function renderTour(){
+    const steps = IS_ADMIN() ? TOUR.admin : TOUR.member, i = S.tour.i, st = steps[i], last = i === steps.length - 1;
+    const el = $('#tour'); el.hidden = false;
+    el.innerHTML = `<div class="tourcard"><div class="touric">${svg(st.ic, 34, 1.8)}</div><h2>${st.t}</h2><div class="tourb">${st.b}</div>
+      <div class="dots">${steps.map((_, k) => `<i class="${k === i ? 'on' : ''}"></i>`).join('')}</div>
+      <div class="row2" style="margin-top:14px">${i ? '<button class="btn gray" data-act="tourPrev">戻る</button>' : '<button class="btn gray" data-act="tourEnd">スキップ</button>'}<button class="btn" data-act="${last ? 'tourEnd' : 'tourNext'}">${last ? 'はじめる' : '次へ'}</button></div></div>`;
+}
+function tourGo(d){ const n = (IS_ADMIN() ? TOUR.admin : TOUR.member).length; S.tour.i = Math.max(0, Math.min(n - 1, S.tour.i + d)); renderTour(); }
+function closeTour(){ const el = $('#tour'); el.hidden = true; el.innerHTML = ''; if (S.me) ls.set('lab_tour_' + S.me.id, true); }
+{   // 横にスワイプでも進める
+    let x0 = null;
+    document.addEventListener('touchstart', e => { x0 = $('#tour').hidden ? null : e.touches[0].clientX; }, { passive: true });
+    document.addEventListener('touchend', e => {
+        if (x0 == null) return; const dx = e.changedTouches[0].clientX - x0; x0 = null;
+        if (Math.abs(dx) > 60) tourGo(dx < 0 ? 1 : -1);
+    }, { passive: true });
+}
+
 /* ---------- その他（ダウンロードなど） ---------- */
 function viewMore(){
     const d = S.dl; const cur = THEMES[ls.get('lab_theme', 'solar')] ? ls.get('lab_theme', 'solar') : 'solar';
@@ -1151,7 +1202,8 @@ function viewMore(){
         <button class="btn" data-act="download">CSVをダウンロード</button>
         <p class="hint" style="margin:8px 2px 0">進捗・完了・破棄・メモを日付つきで保存します。Excelで開けます。</p></div>
       <div class="gh">この端末</div>
-      <div class="list"><button class="row" data-act="switchAcc"><span class="rb"><span class="rt">アカウント切替</span></span>${chev}</button>
+      <div class="list"><button class="row" data-act="tour"><span class="rb"><span class="rt">使い方を見る</span><span class="rm">タブの使い方・チームの選び方</span></span>${chev}</button>
+        <button class="row" data-act="switchAcc"><span class="rb"><span class="rt">アカウント切替</span></span>${chev}</button>
         <button class="row" data-act="forgetPw"><span class="rb"><span class="rt">パスワードを削除</span><span class="rm">次回からパスワード入力が必要になります</span></span>${chev}</button></div>
       <p class="hint" style="margin:14px 4px">ホーム画面に追加：iPhone は Safari の共有ボタン →「ホーム画面に追加」、Android は Chrome のメニュー →「ホーム画面に追加」。</p>`;
 }
@@ -2087,6 +2139,10 @@ document.addEventListener('click', e => {
         case 'rename': renameMe(); break;
         case 'switchAcc': switchAccount(); break;
         case 'forgetPw': forgetPassword(); break;
+        case 'tour': openTour(); break;
+        case 'tourNext': tourGo(1); break;
+        case 'tourPrev': tourGo(-1); break;
+        case 'tourEnd': closeTour(); break;
         case 'regStart': OB.kind = 'member'; OB.name = ''; OB.team = ''; OB.newTeam = ''; OB.mode = 'select'; renderRegName(); break;
         case 'regAdmin': OB.kind = 'admin'; OB.name = ''; renderRegName(); break;
         case 'vt': setViewTeam(el.dataset.team); break;
