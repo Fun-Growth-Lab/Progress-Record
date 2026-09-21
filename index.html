@@ -394,7 +394,7 @@ const API = {
 
 /* ---------- 状態 ---------- */
 const S = {
-    pass: null, me: null, admin: null, adminList: null, adminShell: false,
+    pass: null, me: null, admin: null, adminList: null, viewTeam: '', teamNames: [],
     members: [], tasks: [], logs: {},
     tab: 'tasks', taskStatus: 'open', teamFilter: 'all',
     memoDate: today(), memoMode: 'day', memoScope: 'me', memoData: { notes: [], logs: [] }, memoLoaded: false,
@@ -416,6 +416,9 @@ const noteNames = list => (list || []).forEach(m => {
 const adminBadge = id => ADMINS.has(id) ? '<span class="abadge">管理者</span>' : '';
 const nameH = id => esc(memName(id)) + adminBadge(id);   // 名前＋管理者マーク（HTML）
 const nameM = m => esc(m.name) + adminBadge(m.id);
+const IS_ADMIN = () => !!(S.me && S.me.admin);   // 管理者：どのチームにも所属せず、全チームを管理する
+const curTeamName = () => IS_ADMIN() ? S.viewTeam : S.me.team;
+const meFrom = m => ({ id: m.id, name: m.name, team: m.is_admin ? '' : (m.team || ''), admin: !!m.is_admin });
 const memName = id => (mem(id) || {}).name || NAMES[id] || '（不明）';
 const findTask = id => S.tasks.find(t => t.id === id) || ((S.tv && S.tv.tasks) || []).find(t => t.id === id);
 
@@ -444,11 +447,11 @@ function typing(){
 /* ============================================================
    ログイン → アカウント選択 → 名前登録 → チーム選択/登録（1画面1項目）
    ============================================================ */
-const OB = { all: [], teamList: [], name: '', team: '', newTeam: '', mode: 'select' };
+const OB = { all: [], teamList: [], name: '', team: '', newTeam: '', mode: 'select', kind: 'member' };
 const initial = n => esc([...String(n || '?')][0]);
 function shell(inner){ $('#app').innerHTML = `<div class="ob">${inner}</div>`; $('#app').style.height = 'auto'; }
 const obHead = (back, step) => `<div class="ob-top">${back ? `<button class="icon-btn" data-act="${back}" aria-label="戻る">${svg('back', 22)}</button>` : '<span></span>'}${step ? `<span class="step">${step}</span>` : ''}</div>`;
-const footLinks = admin => `<div class="foot-links"><button data-act="forgetPw">パスワード再入力</button>${admin ? '<button data-act="admWho">管理者モード</button>' : ''}</div>`;
+const footLinks = () => `<div class="foot-links"><button data-act="forgetPw">パスワード再入力</button></div>`;
 
 function renderSetupNeeded(){
     shell(`<div class="brand"><img class="logo" src="icon-192.png" alt=""><h1>研究進捗アプリ</h1></div>
@@ -476,7 +479,7 @@ function renderLogin(msg){
             if (ok !== true) throw Object.assign(new Error('パスワードが違います'), { wrong: true });
             ls.set('lab_pass', S.pass);
             const saved = ls.get('lab_me');
-            if (saved) { S.me = saved; startMain(); } else await enterWho();
+            if (saved) useSavedMe(saved); else await enterWho();
         } catch (err) {
             S.pass = null; btn.disabled = false; btn.textContent = '次へ';
             const el = $('#lerr'); el.textContent = err.wrong ? 'パスワードが違います' : errMsg(err); el.hidden = false;
@@ -515,34 +518,65 @@ async function enterWho(){
 const obVisible = () => OB.all.filter(m => !m.is_hidden);
 const obTeams = () => OB.teamList || [];
 
-/* アカウント選択 */
+/* アカウント選択：一般・管理者のどちらも、ここから始める */
 function renderAccounts(){
     const all = obVisible();
-    if (!all.length) { renderRegName(); return; }
-    const teams = [...new Set(all.map(m => m.team))];
-    shell(`${obHead()}<div class="ob-body"><h2 class="ob-h">アカウント選択</h2>
-      ${teams.map(t => `<div class="gh" style="margin-top:0">${esc(teamLabel(t))}</div><div class="list" style="margin-bottom:14px">${all.filter(m => m.team === t).map(m =>
+    const groups = [];
+    const admins = all.filter(m => m.is_admin);
+    if (admins.length) groups.push(['管理者', admins]);
+    [...new Set(all.filter(m => !m.is_admin).map(m => m.team))].forEach(t => groups.push([teamLabel(t), all.filter(m => !m.is_admin && m.team === t)]));
+    shell(`${obHead()}<div class="ob-body"><h2 class="ob-h">${all.length ? 'アカウント選択' : 'はじめに'}</h2>
+      ${groups.map(([label, ms]) => `<div class="gh" style="margin-top:0">${esc(label)}</div><div class="list" style="margin-bottom:14px">${ms.map(m =>
         `<button class="row" data-act="pickMe" data-id="${m.id}"><span class="av">${initial(m.name)}</span><span class="rb"><span class="rt">${nameM(m)}</span></span>${svg('chev', 16)}</button>`).join('')}</div>`).join('')}
-      <button class="btn ghost" style="margin-top:6px" data-act="regStart">新規登録</button>
-      ${footLinks(true)}</div>`);
+      <div class="gh" style="margin-top:${all.length ? 8 : 0}px">新規登録</div>
+      <button class="btn ghost" data-act="regStart">新規登録</button>
+      <button class="btn ghost" style="margin-top:8px" data-act="regAdmin">管理者として新規登録</button>
+      ${footLinks()}</div>`);
 }
-/* 新規登録 1/2：名前 */
+/* 新規登録 1/2：名前（一般・管理者 共通） */
 function renderRegName(err){
-    const has = obVisible().length > 0;
-    shell(`${obHead(has ? 'obAccounts' : '', '1 / 2')}<div class="ob-body"><h2 class="ob-h">名前登録</h2>
+    const adm = OB.kind === 'admin';
+    shell(`${obHead('obAccounts', '1 / 2')}<div class="ob-body"><h2 class="ob-h">${adm ? '管理者登録：名前' : '名前登録'}</h2>
       <form id="nameForm"><label class="l" for="rName" style="margin-top:0">名前</label>
       <input id="rName" class="inp" maxlength="20" autocomplete="off" value="${esc(OB.name)}">
       <p class="err" id="rerr" ${err ? '' : 'hidden'}>${esc(err || '')}</p>
-      <div style="height:14px"></div><button class="btn" type="submit">次へ</button></form>
-      ${has ? '' : footLinks(true)}</div>`);
+      <div style="height:14px"></div><button class="btn" type="submit">次へ</button></form></div>`);
     $('#nameForm').onsubmit = e => {
         e.preventDefault();
         OB.name = $('#rName').value.trim();
         if (!OB.name) { const er = $('#rerr'); er.textContent = '名前を入力してください'; er.hidden = false; return; }
-        renderRegTeam();
+        if (adm) renderAdminPw(); else renderRegTeam();
     };
 }
-/* 新規登録 2/2：チーム選択 または チーム登録 */
+/* 管理者として新規登録 2/2：管理者パスワード */
+function renderAdminPw(err){
+    shell(`${obHead('obName', '2 / 2')}<div class="ob-body"><h2 class="ob-h">管理者パスワード</h2>
+      <form id="apwForm"><label class="l" for="apw" style="margin-top:0">管理者パスワード</label>
+      <input id="apw" class="inp" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+      <label class="chk"><input type="checkbox" id="showApw"><span>パスワードを表示</span></label>
+      <p class="err" id="rerr" ${err ? '' : 'hidden'}>${esc(err || '')}</p>
+      <div style="height:14px"></div><button class="btn" id="apwBtn" type="submit">登録</button></form>
+      <p class="hint" style="margin:14px 2px 0">管理者は、どのチームにも所属せず、全チームを管理します。この端末では、次回からパスワードは聞かれません。</p></div>`);
+    $('#apwForm').onsubmit = e => { e.preventDefault(); submitAdminReg(); };
+}
+async function submitAdminReg(){
+    const fail = m => { const er = $('#rerr'); er.textContent = m; er.hidden = false; };
+    const raw = $('#apw').value.normalize('NFKC').trim();
+    if (!raw) return fail('パスワードを入力してください');
+    const btn = $('#apwBtn'); btn.disabled = true;
+    const hash = await sha256hex(raw); S.admin = hash;
+    try { if ((await API.rpc('lab_admin_check')) !== true) { S.admin = null; btn.disabled = false; return fail('パスワードが違います'); } }
+    catch (e) { S.admin = null; btn.disabled = false; return fail(e.status === 404 ? '管理者用のSQL（supabase-admin.sql）がまだ実行されていません' : errMsg(e)); }
+    const row = { id: uuid(), name: OB.name, team: '', is_admin: true };
+    try { await API.insert('lab_members', row); }
+    catch (e) {
+        S.admin = null; btn.disabled = false;
+        return fail((e.status === 409 || e.code === '23505') ? '同じ名前の管理者のアカウントがあります' : /is_admin/.test(e.message || '') ? '管理者マークのSQL（supabase-admin-badge.sql）がまだ実行されていません' : errMsg(e));
+    }
+    ls.set('lab_admin_hash', hash); OB.name = '';
+    setMe(row);
+}
+/* 新規登録 2/2：チーム選択 または チーム登録（一般のみ） */
 function renderRegTeam(err){
     const teams = obTeams();
     if (!teams.length) OB.mode = 'new';
@@ -552,26 +586,49 @@ function renderRegTeam(err){
       ${isNew ? `<label class="l" for="rTeam" style="margin-top:0">新しいチーム名</label><input id="rTeam" class="inp" maxlength="20" autocomplete="off" value="${esc(OB.newTeam)}">`
               : `<div class="list">${teams.map(([t, n]) => `<button class="row ${OB.team === t ? 'sel' : ''}" data-act="obTeam" data-team="${esc(t)}"><span class="radio"></span><span class="rb"><span class="rt">${esc(t)}</span></span><span class="cnt">${n}人</span></button>`).join('')}</div>`}
       <p class="err" id="rerr" ${err ? '' : 'hidden'}>${esc(err || '')}</p>
-      <div style="height:14px"></div><button class="btn" id="regBtn">登録</button>
-      <button class="linkb" id="noTeamBtn" style="display:block;margin:14px auto 0;padding:8px">チームに所属せずに登録（管理者など）</button></div>`);
+      <div style="height:14px"></div><button class="btn" id="regBtn">登録</button></div>`);
     $('#regBtn').onclick = () => submitReg(false);
-    $('#noTeamBtn').onclick = () => submitReg(true);
 }
-async function submitReg(noTeam){
-    const isNew = !noTeam && OB.mode === 'new';
-    const team = noTeam ? '' : (isNew ? ($('#rTeam') ? $('#rTeam').value.trim() : '') : OB.team);
+async function submitReg(){
+    const isNew = OB.mode === 'new';
+    const team = isNew ? ($('#rTeam') ? $('#rTeam').value.trim() : '') : OB.team;
     const fail = m => { const er = $('#rerr'); er.textContent = m; er.hidden = false; };
-    if (!noTeam && !team) return fail(isNew ? 'チーム名を入力してください' : 'チームを選択してください');
+    if (!team) return fail(isNew ? 'チーム名を入力してください' : 'チームを選択してください');
     if (isNew && obTeams().some(([t]) => t === team)) return fail('そのチーム名はすでにあります。「チーム選択」から選んでください');
     if (isNew && !(await confirmReuse(team))) return;
     const btn = $('#regBtn'); btn.disabled = true;
     const row = { id: uuid(), name: OB.name, team };
     try { if (isNew) await ensureTeam(team); await API.insert('lab_members', row); OB.name = ''; OB.team = ''; OB.newTeam = ''; setMe(row); }
-    catch (e) { btn.disabled = false; fail((e.status === 409 || e.code === '23505') ? (noTeam ? '同じ名前の「所属なし」のアカウントがあります' : '同じチームに同じ名前のアカウントがあります') : errMsg(e)); }
+    catch (e) { btn.disabled = false; fail((e.status === 409 || e.code === '23505') ? '同じチームに同じ名前のアカウントがあります' : errMsg(e)); }
+}
+/* 管理者アカウントを使うとき：この端末で最初の1回だけ管理者パスワードを確認（以後は聞かない） */
+async function ensureAdminAccess(){
+    const stored = ls.get('lab_admin_hash');
+    if (stored) {
+        S.admin = stored;
+        try { if ((await API.rpc('lab_admin_check')) === true) return true; } catch (e) {}
+        S.admin = null; ls.del('lab_admin_hash');   // 管理者パスワードが変わっていた
+    }
+    const r = await askBox({ title: '管理者パスワード', desc: 'この端末で最初の1回だけ入力します。', input: 'password', placeholder: '管理者パスワード', ok: '入る' });
+    if (!r || !r.text) return false;
+    const hash = await sha256hex(r.text.normalize('NFKC').trim()); S.admin = hash;
+    try { if ((await API.rpc('lab_admin_check')) !== true) { S.admin = null; toast('管理者パスワードがちがいます'); return false; } }
+    catch (e) { S.admin = null; toast(e.status === 404 ? '管理者用のSQL（supabase-admin.sql）がまだ実行されていません' : errMsg(e), 5000); return false; }
+    ls.set('lab_admin_hash', hash);
+    return true;
+}
+function useSavedMe(saved){
+    S.me = saved;
+    if (saved.admin) {
+        S.admin = ls.get('lab_admin_hash');
+        if (!S.admin) { ls.del('lab_me'); S.me = null; enterWho(); return; }   // この端末に管理者の保存がない：アカウント選択から
+    }
+    startMain();
 }
 function setMe(m){
-    S.me = { id: m.id, name: m.name, team: m.team };
+    S.me = meFrom(m);
     ls.set('lab_me', S.me);
+    if (S.me.admin) S.admin = ls.get('lab_admin_hash');
     startMain();
 }
 
@@ -604,7 +661,7 @@ function startMain(){
     // ブラウザに「この端末の保存内容（ログイン情報）を消さないで」と頼む（対応ブラウザのみ）
     try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
     const cache = ls.get('lab_cache');
-    if (cache && cache.team === S.me.team) { S.members = cache.members || []; S.tasks = cache.tasks || []; updateNew(); }
+    if (cache && cache.team === S.me.team && !IS_ADMIN()) { S.members = cache.members || []; S.tasks = cache.tasks || []; updateNew(); }
     buildFrame();
     render();
     refreshAll();
@@ -618,8 +675,9 @@ function buildFrame(){
 }
 function renderTop(){
     const title = { tasks: 'タスク', memo: '記録', chat: '連絡', more: '設定' }[S.tab];
-    const tl = teamLabel(S.me.team);
-    const sub = { tasks: `${tl} · ${fmtMD(today())}`, memo: tl, chat: tl, more: S.me.name }[S.tab];
+    const adm = IS_ADMIN();
+    const tl = adm ? (S.viewTeam ? teamLabel(S.viewTeam) : '全チーム') : teamLabel(S.me.team);
+    const sub = { tasks: `${tl} · ${fmtMD(today())}`, memo: adm && !S.viewTeam ? 'チーム未選択' : tl, chat: adm ? '管理者' : tl, more: S.me.name }[S.tab];
     $('#top').innerHTML = `<div class="tw"><h1>${esc(title)}</h1><div class="st">${esc(sub)}</div></div><button class="icon-btn" data-act="reload" aria-label="更新">${svg('refresh', 20)}</button>`;
 }
 function renderTabbar(){
@@ -640,7 +698,7 @@ function render(){
     main.innerHTML = v;
     main.scrollTop = sc;
     if (memoKeep && $('#memoText')) $('#memoText').value = memoKeep;
-    $('#fabwrap').innerHTML = S.tab === 'tasks' ? `<button class="fab" data-act="newTask" aria-label="タスクを追加">${svg('plus', 26, 2.3)}</button>` : '';
+    $('#fabwrap').innerHTML = S.tab === 'tasks' && !IS_ADMIN() ? `<button class="fab" data-act="newTask" aria-label="タスクを追加">${svg('plus', 26, 2.3)}</button>` : '';
 }
 function softRender(){ if (S.sheets.length || typing()) return; render(); }
 
@@ -707,7 +765,24 @@ function segHTML(list){
     const b = (v, l) => `<button data-act="status" data-v="${v}" class="${S.taskStatus === v ? 'on' : ''}">${l}<span class="c">${c[v]}</span></button>`;
     return `<div class="seg">${b('open', '進行中')}${b('done', '完了')}${b('dropped', '破棄')}</div>`;
 }
+/* 管理者用：チームの選択ボタン */
+function teamChips(includeAll){
+    const chip = (v, label) => `<button data-act="vt" data-team="${esc(v)}" class="${S.viewTeam === v ? 'on' : ''}">${esc(label)}</button>`;
+    return `<div class="chips">${includeAll ? chip('', '全体') : ''}${viewTeamList().map(t => chip(t, teamLabel(t))).join('')}</div>`;
+}
+function viewTasksAdmin(){
+    const chips = teamChips(true);
+    if (!S.viewTeam) {   // 全体：全チームの状況
+        const rows = S.at.teams.filter(t => t.name).map(t => `<button class="row" data-act="vt" data-team="${esc(t.name)}"><span class="av">${initial(t.name)}</span><span class="rb"><span class="rt">${esc(t.name)}</span>
+            <span class="rm"><span>${t.members.filter(m => !m.is_hidden).length}人</span><span>進行中 ${t.open}</span>${t.overdue ? `<span class="due over">期限切れ ${t.overdue}</span>` : ''}<span>直近7日の記録 ${t.recent}件</span></span></span>${svg('chev', 16)}</button>`).join('');
+        return `${chips}${!S.at.loaded ? '<div class="empty">読み込み中…</div>' : rows ? `<div class="gh" style="margin-top:4px">全チーム<span class="n">${S.at.teams.filter(t => t.name).length}</span></div><div class="list">${rows}</div>` : '<div class="empty"><b>チームはありません</b>「設定」→「チーム管理」から作成できます</div>'}`;
+    }
+    const open = S.tasks.filter(t => t.status === 'open'), over = open.filter(t => t.due_date && t.due_date < today());
+    const stats = `<div class="stats" style="margin-bottom:8px"><div><b>${open.length}</b><span>進行中</span></div><div class="${over.length ? 'bad' : ''}"><b>${over.length}</b><span>期限切れ</span></div><div><b>${S.tasks.filter(t => t.status === 'done').length}</b><span>完了</span></div></div>`;
+    return `${chips}${stats}${segHTML(S.tasks)}${taskListHTML(S.tasks.filter(t => t.status === S.taskStatus), true)}`;
+}
 function viewTasks(){
+    if (IS_ADMIN()) return viewTasksAdmin();
     const teamless = !S.me.team;
     const f = teamless || S.teamFilter === 'me' ? 'me' : 'all';
     const base = f === 'me' ? S.tasks.filter(t => t.assignee_id === S.me.id) : S.tasks;
@@ -735,7 +810,8 @@ function entryHTML(i, noTools){
         ${t ? `<a class="tk" data-act="openTask" data-id="${i.task_id}">${esc(t.title)}</a>` : '<span class="tk" style="color:var(--sub);font-weight:500">（このチームにないタスク）</span>'}${i.body ? `<div class="tx">${esc(i.body)}</div>` : ''}</div></div>`;
 }
 function viewMemo(){
-    const d = S.memoDate, mode = S.memoMode, sc = S.memoScope;
+    const admin = IS_ADMIN();
+    const d = S.memoDate, mode = S.memoMode, sc = admin ? 'all' : S.memoScope;
     const [from, to] = memoRange();
     const { notes, logs } = S.memoData;
     let items = [
@@ -746,7 +822,8 @@ function viewMemo(){
     items.sort((a, b) => a.at < b.at ? -1 : 1);
 
     let listHTML;
-    if (!S.memoLoaded) listHTML = '<div class="empty">読み込み中…</div>';
+    if (admin && !S.viewTeam) listHTML = '<div class="empty"><b>チームを選んでください</b></div>';
+    else if (!S.memoLoaded) listHTML = '<div class="empty">読み込み中…</div>';
     else if (!items.length) listHTML = `<div class="empty"><b>記録はありません</b>${mode === 'day' ? '' : 'この期間'}</div>`;
     else if (mode === 'day') listHTML = `<div class="gh">${fmtLong(d)}<span class="n">${items.length}件</span></div><div class="list">${items.map(i => entryHTML(i)).join('')}</div>`;
     else {   // 週・月：日付ごとの見出し（新しい日が上）、日の中は時刻順
@@ -758,15 +835,15 @@ function viewMemo(){
         }).join('');
     }
     const seg = (act, cur, opts) => `<div class="seg">${opts.map(([v, l]) => `<button data-act="${act}" data-v="${v}" class="${cur === v ? 'on' : ''}">${l}</button>`).join('')}</div>`;
-    return `<div class="datebar">
+    return `${admin ? teamChips(false) : ''}<div class="datebar">
         <button class="icon-btn" data-act="memoShift" data-v="-1" aria-label="前へ">${svg('back', 20)}</button>
         <input class="inp" type="date" id="memoDate" value="${d}">
         <button class="icon-btn" data-act="memoShift" data-v="1" aria-label="次へ">${svg('chev', 20)}</button></div>
       ${mode !== 'day' ? `<div class="hint" style="text-align:center;margin:-2px 0 6px">${fmtMD(from)} 〜 ${fmtMD(to)}</div>` : ''}
       ${d !== today() ? `<div style="text-align:center;margin:-4px 0 6px"><button class="linkb" data-act="memoToday">今日にもどる</button></div>` : ''}
-      ${mode === 'day' ? `<div class="card"><textarea id="memoText" class="inp" rows="2" placeholder="（やったこと・メモ・気づき）"></textarea>
+      ${mode === 'day' && !admin ? `<div class="card"><textarea id="memoText" class="inp" rows="2" placeholder="（やったこと・メモ・気づき）"></textarea>
         <div style="height:8px"></div><button class="btn" data-act="addMemo">記録する</button></div>` : ''}
-      <div class="ctl">${seg('memoMode', mode, [['day', '日'], ['week', '週'], ['month', '月']])}${seg('memoScope', sc, [['me', '自分'], ['all', 'チーム全員']])}</div>
+      <div class="ctl" ${admin ? 'style="grid-template-columns:1fr"' : ''}>${seg('memoMode', mode, [['day', '日'], ['week', '週'], ['month', '月']])}${admin ? '' : seg('memoScope', sc, [['me', '自分'], ['all', 'チーム全員']])}</div>
       ${listHTML}`;
 }
 const KIND = { create: '作成', note: '進捗', done: '完了', drop: '破棄', reopen: '再開', assign: '担当変更', due: '期限変更' };
@@ -852,7 +929,7 @@ function showHistory(type, id){
 
 /* ---------- 連絡 ---------- */
 function viewChat(){
-    const admin = !!S.admin;
+    const admin = IS_ADMIN();
     const un = k => S.unread[k] ? `<span class="un">${S.unread[k]}</span>` : '';
     const row = (key, av, nameHtml, meta) => `<button class="row" data-act="openRoom" data-key="${esc(key)}"><span class="av">${av}</span><span class="rb"><span class="rt">${nameHtml}</span>${meta ? `<span class="rm">${esc(meta)}</span>` : ''}</span>${un(key)}${svg('chev', 16)}</button>`;
     let html = '';
@@ -863,9 +940,11 @@ function viewChat(){
         const others = A.list.filter(([t]) => t !== S.me.team);
         if (others.length) html += `<div class="gh">全チーム<span class="n">${others.length}</span></div><div class="list">${others.map(([t, n]) => row('t:' + t, svg('team', 18), esc(t), `${n}人`)).join('')}</div>`;
         const people = A.all.filter(m => !m.is_hidden && m.id !== S.me.id);
-        [...new Set(people.map(m => m.team))].forEach(t => {
-            html += `<div class="gh">${esc(teamLabel(t))}のメンバー<span class="n">${people.filter(m => m.team === t).length}</span></div><div class="list">${people.filter(m => m.team === t).map(m => row(m.id, initial(m.name), nameM(m))).join('')}</div>`;
-        });
+        const groups = [];
+        const ads = people.filter(m => m.is_admin);
+        if (ads.length) groups.push(['管理者', ads]);
+        [...new Set(people.filter(m => !m.is_admin).map(m => m.team))].forEach(t => groups.push([teamLabel(t) + 'のメンバー', people.filter(m => !m.is_admin && m.team === t)]));
+        groups.forEach(([label, ms]) => { html += `<div class="gh">${esc(label)}<span class="n">${ms.length}</span></div><div class="list">${ms.map(m => row(m.id, initial(m.name), nameM(m))).join('')}</div>`; });
         return html || '<div class="empty"><b>メンバーがいません</b></div>';
     }
     // 一般のメンバー：同じチームの人と、管理者にだけ連絡できる
@@ -880,12 +959,14 @@ function viewChat(){
 function viewMore(){
     const d = S.dl; const cur = THEMES[ls.get('lab_theme', 'solar')] ? ls.get('lab_theme', 'solar') : 'solar';
     const chev = svg('chev', 16);
-    return `<div class="card acc"><span class="av lg">${initial(S.me.name)}</span><div class="rb"><b>${esc(S.me.name)}${adminBadge(S.me.id)}</b><span class="t">${esc(teamLabel(S.me.team))}</span></div><button class="btn gray sm" data-act="rename">名前変更</button></div>
-      <div class="gh">チーム</div>
+    return `<div class="card acc"><span class="av lg">${initial(S.me.name)}</span><div class="rb"><b>${esc(S.me.name)}${adminBadge(S.me.id)}</b><span class="t">${IS_ADMIN() ? '管理者（どのチームにも所属しません）' : esc(teamLabel(S.me.team))}</span></div><button class="btn gray sm" data-act="rename">名前変更</button></div>
+      ${IS_ADMIN() ? `<div class="gh">管理</div>
+      <div class="list"><button class="row" data-act="admTeams"><span class="rb"><span class="rt">チーム管理</span><span class="rm">作成・名前の変更・削除・メッセージ</span></span>${chev}</button>
+        <button class="row" data-act="admOpen"><span class="rb"><span class="rt">メンバー管理</span><span class="rm">非表示にする・元に戻す</span></span>${chev}</button></div>` : `      <div class="gh">チーム</div>
       <div class="list">${S.me.team ? `<button class="row" data-act="teamRename"><span class="rb"><span class="rt">チーム名を変更</span><span class="rm">現在：${esc(S.me.team)}（メンバー全員に反映）</span></span>${chev}</button>` : ''}
         <button class="row" data-act="teamOpen"><span class="rb"><span class="rt">${S.me.team ? 'チームを変更' : 'チームに参加'}</span><span class="rm">${S.me.team ? '別のチームに参加、または新しいチームを作成' : '既存のチームに参加、または新しいチームを作成'}</span></span>${chev}</button>
         ${S.me.team ? `<button class="row" data-act="teamLeave"><span class="rb"><span class="rt" style="color:var(--bad)">チームから脱退</span></span>${chev}</button>` : ''}</div>
-      <p class="hint" style="margin:6px 4px 0">記録とタスクはあなたに属します。チームを移ると、過去の分も含めて一緒に移動します。</p>
+      <p class="hint" style="margin:6px 4px 0">記録とタスクはあなたに属します。チームを移ると、過去の分も含めて一緒に移動します。</p>`}
       <div class="gh">テーマ</div>
       <div class="themes">${Object.entries(THEMES).map(([id, t]) => `<button class="theme ${cur === id ? 'on' : ''}" data-act="theme" data-v="${id}" style="background:${t.bg};color:${t.ink};border-color:${cur === id ? t.pri : t.line}">
           <span class="tn">${esc(t.n)}</span><span class="ts" style="color:${t.sub}">${esc(t.s)}</span>
@@ -893,14 +974,9 @@ function viewMore(){
       <div class="gh">記録のダウンロード</div>
       <div class="card"><div class="grid2"><div><label class="l" style="margin-top:0" for="dlFrom">開始日</label><input class="inp" type="date" id="dlFrom" value="${d.from}"></div>
           <div><label class="l" style="margin-top:0" for="dlTo">終了日</label><input class="inp" type="date" id="dlTo" value="${d.to}"></div></div>
-        <div class="seg" style="margin:10px 0"><button data-act="dlScope" data-v="me" class="${d.scope === 'me' ? 'on' : ''}">自分</button><button data-act="dlScope" data-v="all" class="${d.scope === 'all' ? 'on' : ''}">チーム全員</button></div>
+        ${IS_ADMIN() ? `<p class="hint" style="margin:10px 2px">対象：<b>${esc(S.viewTeam ? teamLabel(S.viewTeam) : '（タスク・記録タブでチームを選んでください）')}</b></p>` : `<div class="seg" style="margin:10px 0"><button data-act="dlScope" data-v="me" class="${d.scope === 'me' ? 'on' : ''}">自分</button><button data-act="dlScope" data-v="all" class="${d.scope === 'all' ? 'on' : ''}">チーム全員</button></div>`}
         <button class="btn" data-act="download">CSVをダウンロード</button>
         <p class="hint" style="margin:8px 2px 0">進捗・完了・破棄・メモを日付つきで保存します。Excelで開けます。</p></div>
-      <div class="gh">管理者</div>
-      <div class="list">${S.admin ? `<button class="row" data-act="admTeams"><span class="rb"><span class="rt">チーム状況</span><span class="rm">全チームの進捗・メンバー・メッセージ</span></span>${chev}</button>
-          <button class="row" data-act="admOpen"><span class="rb"><span class="rt">メンバー管理</span></span>${chev}</button>
-          <button class="row" data-act="admExit"><span class="rb"><span class="rt">管理者モードを終了</span></span>${chev}</button>`
-        : `<button class="row" data-act="admLogin"><span class="rb"><span class="rt">管理者モード</span></span>${chev}</button>`}</div>
       <div class="gh">この端末</div>
       <div class="list"><button class="row" data-act="switchAcc"><span class="rb"><span class="rt">アカウント切替</span></span>${chev}</button>
         <button class="row" data-act="forgetPw"><span class="rb"><span class="rt">パスワードを削除</span><span class="rm">次回からパスワード入力が必要になります</span></span>${chev}</button></div>
@@ -914,6 +990,7 @@ function csvCell(v){
 async function download(){
     const from = $('#dlFrom').value, to = $('#dlTo').value;
     if (!from || !to || from > to) { toast('日付の範囲を確認してください'); return; }
+    if (IS_ADMIN() && !S.viewTeam) { toast('タスク・記録タブで、チームを選んでください'); return; }
     S.dl.from = from; S.dl.to = to;
     const btn = document.querySelector('[data-act="download"]'); btn.disabled = true; btn.textContent = '作成中…';
     try {
@@ -929,7 +1006,7 @@ async function download(){
             ...logs.map(l => { const t = tmap.get(l.task_id) || {}; return { date: l.log_date, at: l.created_at, kind: KIND[l.kind] || l.kind, task: t.title || '', assignee: memName(t.assignee_id), author: memName(l.member_id), body: l.body, due: t.due_date || '', state: st[t.status] || '', edited: (l.edit_history || []).length > 0, authorId: l.member_id, assigneeId: t.assignee_id }; }),
             ...notes.map(n => ({ date: n.note_date, at: n.created_at, kind: 'メモ', task: '', assignee: '', author: memName(n.member_id), body: n.body, due: '', state: '', edited: (n.edit_history || []).length > 0, authorId: n.member_id, assigneeId: null }))
         ];
-        if (S.dl.scope === 'me') rows = rows.filter(r => r.authorId === S.me.id || r.assigneeId === S.me.id);
+        if (!IS_ADMIN() && S.dl.scope === 'me') rows = rows.filter(r => r.authorId === S.me.id || r.assigneeId === S.me.id);
         rows.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : (a.at < b.at ? -1 : 1));
         const head = ['日付', '時刻', '種別', 'タスク', '担当者', '記入者', '内容', '期限', 'タスクの状態', '編集済み'];
         const lines = [head.map(csvCell).join(',')].concat(rows.map(r =>
@@ -937,7 +1014,7 @@ async function download(){
         const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = `研究記録_${teamLabel(S.me.team)}_${from.replace(/-/g, '')}-${to.replace(/-/g, '')}.csv`;
+        a.download = `研究記録_${teamLabel(curTeamName())}_${from.replace(/-/g, '')}-${to.replace(/-/g, '')}.csv`;
         document.body.appendChild(a); a.click(); a.remove();
         setTimeout(() => URL.revokeObjectURL(a.href), 4000);
         toast(`${rows.length}件をダウンロードしました`);
@@ -949,25 +1026,53 @@ async function download(){
    データ読み込み
    ============================================================ */
 /* 記録・タスクは個人に属する：今のチームのメンバーの分を表示する（チームを移ると、過去の分ごとついてくる） */
-const teamLabel = t => t || '所属なし';
+const teamLabel = t => (!t || t === '__none__') ? '所属なし' : t;
 const memberIds = () => { const ids = S.members.map(m => m.id); return ids.includes(S.me.id) ? ids : [...ids, S.me.id]; };
 const inMembers = () => `in.(${memberIds().join(',')})`;
 async function loadMembers(){
-    S.members = S.me.team ? await API.list('lab_members', { team: 'eq.' + S.me.team, order: 'created_at.asc' })
-                          : await API.list('lab_members', { id: 'eq.' + S.me.id });   // 所属なし：自分だけ
+    if (IS_ADMIN()) {   // 管理者：選んだチームのメンバー
+        const t = S.viewTeam;
+        S.members = !t ? [] : t === '__none__' ? (await API.list('lab_members', { team: 'eq.', order: 'created_at.asc' })).filter(m => !m.is_admin)
+                                              : await API.list('lab_members', { team: 'eq.' + t, order: 'created_at.asc' });
+    } else {
+        S.members = S.me.team ? await API.list('lab_members', { team: 'eq.' + S.me.team, order: 'created_at.asc' })
+                              : await API.list('lab_members', { id: 'eq.' + S.me.id });   // 所属なし：自分だけ
+    }
     noteNames(S.members);
 }
-async function loadTasks(){ S.tasks = await API.all('lab_tasks', { assignee_id: inMembers(), order: 'created_at.desc' }); }
-/* 他の端末でチームが変わった／名前が変わったときに、この端末の情報を合わせる */
+async function loadTasks(){ S.tasks = S.members.length || !IS_ADMIN() ? await API.all('lab_tasks', { assignee_id: inMembers(), order: 'created_at.desc' }) : []; }
+/* 他の端末でチームや名前が変わったときに、この端末の情報を合わせる */
 function adoptMe(m){
-    const teamChanged = m.team !== S.me.team;
-    S.me = { id: m.id, name: m.name, team: m.team }; ls.set('lab_me', S.me);
-    if (!teamChanged) return;
+    const nm = meFrom(m);
+    const changed = nm.team !== S.me.team || nm.admin !== S.me.admin;
+    S.me = nm; ls.set('lab_me', S.me);
+    if (!changed) return;
     S.members = []; S.tasks = []; S.logs = {}; S.memoData = { notes: [], logs: [] }; S.memoLoaded = false;
     S.unread = {}; S.newIds = new Set(); S.teamFilter = 'all'; S.sheets = [];
     ls.del('lab_cache'); $('#sheet').hidden = true; $('#sheet').innerHTML = '';
 }
-function saveCache(){ ls.set('lab_cache', { team: S.me.team, members: S.members, tasks: S.tasks }); }
+/* 管理者：チーム一覧を読み込む（タスク・記録で選ぶチーム） */
+const viewTeamList = () => [...S.teamNames, ...(S.adminAll && S.adminAll.all.some(m => !m.team && !m.is_admin && !m.is_hidden) ? ['__none__'] : [])];
+async function loadAdminBase(){
+    const t = await fetchTeams(); S.adminAll = t; S.teamNames = t.list.map(([n]) => n);
+    if (S.viewTeam && !viewTeamList().includes(S.viewTeam)) S.viewTeam = '';
+    if (!S.viewTeam && S.tab === 'memo' && viewTeamList().length) S.viewTeam = viewTeamList()[0];
+}
+async function setViewTeam(name){
+    S.viewTeam = name; S.members = []; S.tasks = []; S.logs = {}; S.memoData = { notes: [], logs: [] }; S.memoLoaded = false;
+    render();
+    try {
+        if (!name) { await loadAdminTeams(); render(); return; }
+        await loadMembers(); await loadTasks(); render();
+        if (S.tab === 'memo') loadMemo();
+    } catch (e) { handleErr(e); }
+}
+function adminAuthFailed(){
+    ls.del('lab_admin_hash');
+    toast('管理者パスワードが確認できません。アカウントを選び直してください', 5000);
+    switchAccount(true);
+}
+function saveCache(){ if (IS_ADMIN()) return; ls.set('lab_cache', { team: S.me.team, members: S.members, tasks: S.tasks }); }
 function updateNew(){
     const key = 'lab_seen_' + S.me.id;
     const mine = S.tasks.filter(t => t.assignee_id === S.me.id && t.status === 'open');
@@ -989,9 +1094,15 @@ async function refreshAll(){
             toast('登録が見つかりません。アカウントを選び直してください', 4000); switchAccount(true); return;
         }
         if (self.is_hidden) { toast('このアカウントは使えなくなっています。管理者に連絡してください', 5000); switchAccount(true); return; }
-        if (self.team !== S.me.team || self.name !== S.me.name) { adoptMe(self); render(); }
+        const st = self.is_admin ? '' : self.team;
+        if (st !== S.me.team || self.name !== S.me.name || !!self.is_admin !== !!S.me.admin) { adoptMe(self); render(); }
+        if (IS_ADMIN()) {
+            if (!S.admin) { switchAccount(true); return; }
+            if ((await API.rpc('lab_admin_check')) !== true) { adminAuthFailed(); return; }
+            await loadAdminBase();
+            if (S.tab === 'tasks' && !S.viewTeam) await loadAdminTeams();
+        }
         await loadMembers();
-        if (S.admin && 'is_admin' in self && !self.is_admin) markAdminBadge();
         await loadTasks();
         saveCache(); updateNew();
         softRender();
@@ -1057,7 +1168,7 @@ function sheetTask(top){
             return `<div class="tl"><div class="tl-d">${dstr}</div><div class="tl-b"><div class="eh"><span class="k k-${l.kind}">${KIND[l.kind] || l.kind}</span><b class="nm">${nameH(l.member_id)}</b>${recTools(l, 'log')}</div>${l.body ? `<div class="tx">${esc(l.body)}</div>` : ''}</div></div>`;
         }).join('');
     }
-    const viewOnly = !S.tasks.includes(t);   // 管理者が見ている他チームのタスクは閲覧のみ
+    const viewOnly = IS_ADMIN() || !S.tasks.includes(t);   // 管理者が見ている他チームのタスクは閲覧のみ
     const actions = viewOnly ? '' : t.status === 'open' ? `
         <div class="card" style="margin-top:12px"><textarea id="noteText" class="inp" rows="2" placeholder="進捗メモ（やったこと・結果・次にやること）"></textarea>
           <div class="comp-row"><input class="inp" type="date" id="noteDate" value="${today()}"><button class="btn" data-act="addNote">記録</button></div></div>
@@ -1366,7 +1477,7 @@ async function deleteTeam(name){
         if (n) await API.patchWhere('lab_members', { team: 'eq.' + name }, { team: '' });
         await API.delWhere('lab_teams', { name: 'eq.' + name });
     } catch (e) {
-        if (e.code === '42501' || e.status === 403) { adminExit(); toast('管理者パスワードが確認できません。もう一度入ってください', 4500); return; }
+        if (e.code === '42501' || e.status === 403) { adminAuthFailed(); return; }
         toast((e.status === 409 || e.code === '23505') ? '「所属なし」に同じ名前のアカウントがあるため、削除できません' : errMsg(e), 5000); return;
     }
     closeSheet(); await new Promise(r => setTimeout(r, 80));
@@ -1377,10 +1488,6 @@ async function loadAdmins(){
     try { S.admins = await API.list('lab_members', { select: 'id,name,team,is_admin', is_admin: 'eq.true' }); noteNames(S.admins); }
     catch (e) { S.admins = []; }   // 管理者マークのSQL未実行のときは、管理者の一覧は出ない
 }
-async function markAdminBadge(){   // 管理者モードに入った人に、管理者マークを付ける（一度付いたら残る）
-    if (!S.me || !S.admin) return;
-    try { await API.patch('lab_members', S.me.id, { is_admin: true }); ADMINS.add(S.me.id); } catch (e) { /* is_admin列が無い（SQL未実行）などは無視 */ }
-}
 async function loadAdminChat(){
     try { S.adminAll = await fetchTeams(); if (S.tab === 'chat' && !S.sheets.length && !typing()) render(); } catch (e) { handleErr(e, true); }
 }
@@ -1388,40 +1495,24 @@ async function loadAdminChat(){
 /* ---------- 管理者モード（メンバーの非表示・復元） ---------- */
 function adminListHTML(){
     if (!S.adminList) return '<div class="empty">読み込み中…</div>';
-    const teams = [...new Set(S.adminList.map(m => m.team))];
-    return teams.map(t => `<div class="gh">${esc(teamLabel(t))}</div><div class="list">${S.adminList.filter(m => m.team === t).map(m => `
+    const groups = [];
+    const ads = S.adminList.filter(m => m.is_admin);
+    if (ads.length) groups.push(['管理者', ads]);
+    [...new Set(S.adminList.filter(m => !m.is_admin).map(m => m.team))].forEach(t => groups.push([teamLabel(t), S.adminList.filter(m => !m.is_admin && m.team === t)]));
+    return groups.map(([label, ms]) => `<div class="gh">${esc(label)}</div><div class="list">${ms.map(m => `
         <div class="row static"><span class="av">${initial(m.name)}</span><span class="rb"><span class="rt">${nameM(m)}${S.me && m.id === S.me.id ? '<span class="tag">この端末</span>' : ''}${m.is_hidden ? '<span class="tag">非表示中</span>' : ''}</span></span>
-          <button class="btn sm ${m.is_hidden ? 'ok' : 'ghost bad'}" data-act="admHide" data-id="${m.id}" data-v="${m.is_hidden ? 0 : 1}">${m.is_hidden ? '元に戻す' : '非表示'}</button></div>`).join('')}</div>`).join('')
+          ${m.is_admin ? '' : `<button class="btn sm ${m.is_hidden ? 'ok' : 'ghost bad'}" data-act="admHide" data-id="${m.id}" data-v="${m.is_hidden ? 0 : 1}">${m.is_hidden ? '元に戻す' : '非表示'}</button>`}</div>`).join('')}</div>`).join('')
         || '<div class="empty">メンバーがいません</div>';
 }
 function sheetAdmin(){
     return sheetHead('メンバー管理') + `<div class="sheet-body"><p class="hint" style="margin:0 2px 4px">非表示にした人は、一覧・連絡・担当の選択に出なくなります。記録は消えません。いつでも元に戻せます。</p>${adminListHTML()}</div>`;
 }
 async function loadAdminList(){
-    try { S.adminList = await API.list('lab_members', { select: 'id,name,team,is_hidden', order: 'team.asc,created_at.asc' }); }
+    try { S.adminList = await API.list('lab_members', { order: 'team.asc,created_at.asc' }); noteNames(S.adminList); }
     catch (e) { S.adminList = []; toast(/is_hidden/.test(e.message || '') ? '管理者用のSQL（supabase-admin.sql）がまだ実行されていません' : errMsg(e), 5000); }
 }
-async function adminLogin(){
-    const r = await askBox({ title: '管理者モード', desc: '管理者パスワードを入れてください', input: 'password', placeholder: '管理者パスワード', ok: '入る' });
-    if (!r || !r.text) return false;
-    const prev = S.admin;
-    S.admin = await sha256hex(r.text.normalize('NFKC').trim());
-    try {
-        if ((await API.rpc('lab_admin_check')) !== true) { S.admin = prev; toast('管理者パスワードがちがいます'); return false; }
-    } catch (e) {
-        S.admin = prev;
-        toast(e.status === 404 ? '管理者用のSQL（supabase-admin.sql）がまだ実行されていません' : errMsg(e), 5000);
-        return false;
-    }
-    try { sessionStorage.setItem('lab_admin', S.admin); } catch (e) {}
-    await markAdminBadge();
-    return true;
-}
-function adminExit(){ S.admin = null; try { sessionStorage.removeItem('lab_admin'); } catch (e) {} }
+function adminExit(){ S.admin = null; }
 async function openAdmin(){ S.adminList = null; pushSheet({ type: 'admin' }); await loadAdminList(); renderSheet(); }
-function renderAdminShell(){
-    shell(`${obHead('admBack')}<div class="ob-body"><h2 class="ob-h">メンバー管理</h2>${adminListHTML()}</div>`);
-}
 async function admHide(id, hide){
     const m = (S.adminList || []).find(x => x.id === id); if (!m) return;
     const self = S.me && id === S.me.id;
@@ -1434,9 +1525,9 @@ async function admHide(id, hide){
         if (S.me) saveCache();
         toast(hide ? '非表示にしました' : '元に戻しました');
         if (hide && self) { S.sheets = []; switchAccount(true); return; }
-        if (S.adminShell) renderAdminShell(); else renderSheet();
+        renderSheet();
     } catch (e) {
-        if (e.code === '42501' || e.status === 403) { adminExit(); toast('管理者パスワードが確認できません。もう一度入ってください', 4500); if (S.adminShell) renderAdminShell(); return; }
+        if (e.code === '42501' || e.status === 403) { adminAuthFailed(); return; }
         toast(/is_hidden/.test(e.message || '') ? '管理者用のSQL（supabase-admin.sql）がまだ実行されていません' : errMsg(e), 5000);
     }
 }
@@ -1540,7 +1631,7 @@ async function checkUnread(){
         // 連絡できるのは、同じチームの人と管理者だけ。それ以外の送り主は数えない
         await loadAdmins();
         const allowed = new Set([...visMembers().map(m => m.id), ...S.admins.map(a => a.id)]);
-        const dm = ADMINS.has(S.me.id) || S.admin ? dm0 : dm0.filter(m => allowed.has(m.sender_id));
+        const dm = IS_ADMIN() ? dm0 : dm0.filter(m => allowed.has(m.sender_id));
         const all = [...dm.map(m => ({ key: m.sender_id, at: m.created_at })), ...tm.map(m => ({ key: 'team', at: m.created_at }))];
         let rm = readMap();
         if (!rm) { // 初回は「いままでのメッセージは既読」として基準を作る
@@ -1588,8 +1679,9 @@ document.addEventListener('click', e => {
     const a = el.dataset.act, v = el.dataset.v;
     switch (a) {
         case 'tab': S.tab = v; render(); $('#main').scrollTop = 0;
-            if (v === 'memo') { S.memoLoaded = false; render(); loadMemo(); }
-            if (v === 'chat') { checkUnread(); if (S.admin) loadAdminChat(); }
+            if (v === 'memo') { if (IS_ADMIN() && !S.viewTeam && viewTeamList().length) setViewTeam(viewTeamList()[0]); else { S.memoLoaded = false; render(); loadMemo(); } }
+            if (v === 'tasks' && IS_ADMIN() && !S.viewTeam) loadAdminTeams().then(() => render());
+            if (v === 'chat') { checkUnread(); if (IS_ADMIN()) loadAdminChat(); }
             if (v === 'tasks') refreshAll();
             break;
         case 'status': S.taskStatus = v; render(); break;
@@ -1618,12 +1710,8 @@ document.addEventListener('click', e => {
         case 'dlScope': S.dl.scope = v; S.dl.from = $('#dlFrom').value || S.dl.from; S.dl.to = $('#dlTo').value || S.dl.to; render(); break;
         case 'download': download(); break;
         case 'theme': ls.set('lab_theme', v); applyTheme(v); render(); break;
-        case 'admLogin': adminLogin().then(ok => { if (ok) { render(); openAdmin(); } }); break;
         case 'admOpen': openAdmin(); break;
-        case 'admExit': adminExit(); render(); toast('管理者モードを終了しました'); break;
         case 'admHide': admHide(el.dataset.id, el.dataset.v === '1'); break;
-        case 'admWho': adminLogin().then(async ok => { if (ok) { S.adminShell = true; S.adminList = null; renderAdminShell(); await loadAdminList(); renderAdminShell(); } }); break;
-        case 'admBack': S.adminShell = false; adminExit(); enterWho(); break;
         case 'teamOpen': openTeamSheet(); break;
         case 'tmCreate': createTeamOnly(); break;
         case 'admTeams': openAdminTeams(); break;
@@ -1641,7 +1729,9 @@ document.addEventListener('click', e => {
         case 'rename': renameMe(); break;
         case 'switchAcc': switchAccount(); break;
         case 'forgetPw': forgetPassword(); break;
-        case 'regStart': OB.name = ''; OB.team = ''; OB.newTeam = ''; OB.mode = 'select'; renderRegName(); break;
+        case 'regStart': OB.kind = 'member'; OB.name = ''; OB.team = ''; OB.newTeam = ''; OB.mode = 'select'; renderRegName(); break;
+        case 'regAdmin': OB.kind = 'admin'; OB.name = ''; renderRegName(); break;
+        case 'vt': setViewTeam(el.dataset.team); break;
         case 'obAccounts': renderAccounts(); break;
         case 'obName': renderRegName(); break;
         case 'obMode': { const t = $('#rTeam'); if (t) OB.newTeam = t.value; OB.mode = v; renderRegTeam(); break; }
@@ -1652,6 +1742,7 @@ document.addEventListener('click', e => {
 document.addEventListener('change', e => {
     if (e.target.id === 'memoDate') setMemoDate(e.target.value);
     if (e.target.id === 'showPw') $('#pw').type = e.target.checked ? 'text' : 'password';
+    if (e.target.id === 'showApw') $('#apw').type = e.target.checked ? 'text' : 'password';
 });
 document.addEventListener('input', e => {
     if (e.target.id === 'msgText') { const t = e.target; t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 130) + 'px'; }
@@ -1659,8 +1750,10 @@ document.addEventListener('input', e => {
 
 async function enterAs(id){
     try {
-        const all = await API.list('lab_members', { select: 'id,name,team', id: 'eq.' + id });
-        if (all[0]) setMe(all[0]);
+        const all = await API.list('lab_members', { id: 'eq.' + id });
+        if (!all[0]) return;
+        if (all[0].is_admin && !(await ensureAdminAccess())) return;
+        setMe(all[0]);
     } catch (e) { handleErr(e); }
 }
 async function renameMe(){
@@ -1674,7 +1767,7 @@ async function renameMe(){
     } catch (e) { handleErr(e); }
 }
 function resetSession(){
-    stopTimers(); S.me = null; S.sheets = []; adminExit(); S.adminShell = false;
+    stopTimers(); S.me = null; S.sheets = []; S.admin = null; S.viewTeam = ''; S.teamNames = [];
     $('#sheet').hidden = true; $('#sheet').innerHTML = '';
 }
 /* アカウント切替：パスワードは端末に残す（毎回入力しなくてよい） */
@@ -1686,7 +1779,7 @@ async function switchAccount(force){
 }
 /* パスワード削除：この端末に保存したパスワードを消す（次回は入力が必要） */
 function forgetPassword(){
-    ['lab_pass', 'lab_me', 'lab_cache'].forEach(ls.del);
+    ['lab_pass', 'lab_me', 'lab_cache', 'lab_admin_hash'].forEach(ls.del);
     S.pass = null; resetSession();
     renderLogin();
 }
@@ -1722,10 +1815,9 @@ if (window.visualViewport) {
     if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => {});
     if (!CONFIGURED) { renderSetupNeeded(); return; }
     S.pass = ls.get('lab_pass'); S.me = ls.get('lab_me');
-    try { S.admin = sessionStorage.getItem('lab_admin'); } catch (e) {}
     if (!S.pass) { renderLogin(); return; }
     if (!S.me) { enterWho(); return; }
-    startMain();
+    useSavedMe(S.me);
 })();
 </script>
 </body>
