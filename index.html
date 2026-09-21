@@ -66,7 +66,7 @@ svg{display:block}
 .row .rm{font-size:12px;color:var(--sub);display:flex;flex-wrap:wrap;align-items:center}
 .row .rm>*+*::before{content:"·";margin:0 5px;color:var(--dim);font-weight:400}
 .row>svg{flex:none;color:var(--dim)}
-.due{font-weight:600}.due.over{color:var(--bad)}.due.today,.due.soon{color:var(--warn)}
+.due{font-weight:500}.due .dl{margin-left:6px;font-weight:700}.due.over{color:var(--bad)}.due.today,.due.soon{color:var(--warn)}
 .row.mine{box-shadow:inset 3px 0 0 var(--pri)}
 .row .rm>.me-tag::before{content:none}
 .row .rm>.me-tag{margin-left:6px}
@@ -142,7 +142,8 @@ select.inp{background-image:linear-gradient(45deg,transparent 50%,var(--sub) 50%
 .k{display:inline-block;padding:0 7px;height:18px;line-height:18px;border-radius:9px;font-size:11px;font-weight:700;margin-right:6px;vertical-align:1px}
 .k-note{background:var(--pri-l);color:var(--pri)} .k-done{background:var(--ok-l);color:var(--ok)} .k-drop{background:var(--card2);color:var(--sub)}
 .k-create,.k-reopen,.k-assign,.k-due{background:var(--purple-l);color:var(--purple)}
-.k-memo{background:var(--warn-l);color:var(--warn)}
+.k-memo{background:var(--warn-l);color:var(--warn);box-shadow:inset 0 0 0 1px var(--warn)}
+.k-tk{background:var(--pri-l);color:var(--pri);box-shadow:inset 0 0 0 1px var(--pri)}
 .comp-row{display:flex;gap:8px;margin-top:8px}
 .comp-row .inp{flex:1;min-width:0}
 .comp-row .btn{width:88px;flex:none}
@@ -645,15 +646,17 @@ function dueInfo(t){
     const d = diffDays(t.due_date, today());
     return { cls: d < 0 ? 'over' : d === 0 ? 'today' : d <= 3 ? 'soon' : 'ok' };
 }
+/* 期限の日付に添える言葉：期限切れ（○日）／今日まで／あと○日 */
+function dueLabel(t){
+    if (t.status !== 'open' || !t.due_date) return '';
+    const d = diffDays(t.due_date, today());
+    return d < 0 ? `期限切れ（${-d}日）` : d === 0 ? '今日まで' : `あと${d}日`;
+}
 function dueText(t){
     if (t.status === 'done') return `完了 ${t.closed_date ? fmtM(t.closed_date) : ''}`;
     if (t.status === 'dropped') return `破棄 ${t.closed_date ? fmtM(t.closed_date) : ''}`;
     if (!t.due_date) return '';
-    const d = diffDays(t.due_date, today());
-    if (d < 0) return `${fmtMD(t.due_date)} ${-d}日超過`;
-    if (d === 0) return '今日';
-    if (d === 1) return '明日';
-    return fmtMD(t.due_date);
+    return `${fmtMD(t.due_date)} ${dueLabel(t)}`;
 }
 const GROUPS = [['over', '期限切れ'], ['today', '今日'], ['week', '7日以内'], ['later', 'それ以降'], ['none', '期限なし']];
 function dueGroup(t){
@@ -675,7 +678,9 @@ function taskRow(t, showWho){
     const txt = dueText(t);
     const mine = t.assignee_id === S.me.id;
     const who = mine ? '<span class="me-tag">自分</span>' : `<span>${esc(memName(t.assignee_id))}</span>`;
-    const meta = [txt ? `<span class="due ${t.status === 'open' ? di.cls : ''}">${esc(txt)}</span>` : '', showWho ? who : ''].filter(Boolean).join('');
+    const lab = dueLabel(t);
+    const dueHTML = t.status === 'open' && t.due_date ? `<span class="due ${di.cls}">${fmtMD(t.due_date)}<span class="dl">${esc(lab)}</span></span>` : (txt ? `<span class="due">${esc(txt)}</span>` : '');
+    const meta = [dueHTML, showWho ? who : ''].filter(Boolean).join('');
     return `<button class="row ${mine ? 'mine' : ''}" data-act="openTask" data-id="${t.id}"><span class="dot ${di.cls === 'ok' ? '' : di.cls}"></span>
         <span class="rb"><span class="rt">${esc(t.title)}${S.newIds.has(t.id) ? '<span class="new">NEW</span>' : ''}</span>${meta ? `<span class="rm">${meta}</span>` : ''}</span>${svg('chev', 16)}</button>`;
 }
@@ -718,9 +723,9 @@ const MEMO_SPAN = { day: 1, week: 7, month: 30 };
 function memoRange(){ const to = S.memoDate; return [addDays(to, -(MEMO_SPAN[S.memoMode] - 1)), to]; }
 function entryHTML(i, noTools){
     const who = `<b>${esc(memName(i.member_id))}</b>`;
-    if (i.type === 'note') return `<div class="ent"><span class="et">${fmtHM(i.at)}</span><div class="eb"><div class="eh"><span class="k k-memo">メモ</span>${who}${noTools ? '' : recTools(i.rec, 'note')}</div><div class="tx">${esc(i.body)}</div></div></div>`;
+    if (i.type === 'note') return `<div class="ent"><span class="et">${fmtHM(i.at)}</span><div class="eb"><div class="eh"><span class="k k-memo">記録</span>${who}${noTools ? '' : recTools(i.rec, 'note')}</div><div class="tx">${esc(i.body)}</div></div></div>`;
     const t = findTask(i.task_id);
-    return `<div class="ent"><span class="et">${fmtHM(i.at)}</span><div class="eb"><div class="eh"><span class="k k-${i.kind}">${KIND[i.kind] || i.kind}</span>${who}${noTools ? '' : recTools(i.rec, 'log')}</div>
+    return `<div class="ent"><span class="et">${fmtHM(i.at)}</span><div class="eb"><div class="eh"><span class="k k-tk">タスク</span><span class="k k-${i.kind}">${KIND[i.kind] || i.kind}</span>${who}${noTools ? '' : recTools(i.rec, 'log')}</div>
         ${t ? `<a class="tk" data-act="openTask" data-id="${i.task_id}">${esc(t.title)}</a>` : '<span class="tk" style="color:var(--sub);font-weight:500">（このチームにないタスク）</span>'}${i.body ? `<div class="tx">${esc(i.body)}</div>` : ''}</div></div>`;
 }
 function viewMemo(){
