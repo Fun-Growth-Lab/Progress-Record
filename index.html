@@ -89,6 +89,7 @@ svg{display:block}
 .seg button .c{font-weight:500;color:var(--dim);margin-left:3px}
 .seg button.on{background:var(--pri-l);color:var(--pri)}
 .seg button.on .c{color:var(--pri)}
+.seg button .c.bad,.seg button.on .c.bad{color:var(--bad);font-weight:700}
 .chips{scrollbar-width:none;display:flex;gap:6px;overflow-x:auto;margin:0 -12px 8px;padding:0 12px;-webkit-overflow-scrolling:touch}
 .chips::-webkit-scrollbar{display:none}
 .chips button{flex:none;height:32px;padding:0 13px;border:1px solid var(--line);border-radius:16px;background:var(--card);font-size:13px;font-weight:600;color:var(--sub)}
@@ -836,7 +837,7 @@ function taskListHTML(list, showWho){
 }
 function segHTML(list){
     const c = { open: 0, over: 0, done: 0 }; list.forEach(t => { const b = taskBucket(t); if (b) c[b]++; });
-    const b = (v, l) => `<button data-act="status" data-v="${v}" class="${S.taskStatus === v ? 'on' : ''}">${l}<span class="c">${c[v]}</span></button>`;
+    const b = (v, l) => `<button data-act="status" data-v="${v}" class="${S.taskStatus === v ? 'on' : ''}">${l}<span class="c ${v === 'over' && c[v] ? 'bad' : ''}">${c[v]}</span></button>`;
     return `<div class="seg">${b('open', '進行中')}${b('over', '期限切れ')}${b('done', '完了')}</div>`;
 }
 /* 管理者：チームを選ぶ画面（「全チーム」のとき。タスク・記録で共通） */
@@ -850,10 +851,9 @@ function teamSelectHTML(kind){
 function viewTasksAdmin(){
     const chips = '';
     if (!S.viewTeam) return teamSelectHTML('tasks');   // 全チーム：チームを選ぶ画面
-    const cnt = { open: 0, over: 0, done: 0 }; S.tasks.forEach(t => { const b = taskBucket(t); if (b) cnt[b]++; });
-    const stats = `<div class="stats" style="margin-bottom:8px"><div><b>${cnt.open}</b><span>進行中</span></div><div class="${cnt.over ? 'bad' : ''}"><b>${cnt.over}</b><span>期限切れ</span></div><div><b>${cnt.done}</b><span>完了</span></div></div>`;
-    return `${stats}${segHTML(S.tasks)}${taskListHTML(S.tasks.filter(t => taskBucket(t) === S.taskStatus), true)}`;
+    return `${segHTML(S.tasks)}${taskListHTML(S.tasks.filter(t => taskBucket(t) === S.taskStatus), true)}`;
 }
+
 function viewTasks(){
     if (IS_ADMIN()) return viewTasksAdmin();
     const teamless = !S.me.team;
