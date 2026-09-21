@@ -208,6 +208,13 @@ select.inp{background-image:linear-gradient(45deg,transparent 50%,var(--sub) 50%
 .dlg.pick .row .ck{flex:none;color:var(--pri);display:flex}
 .cb{flex:none;width:22px;height:22px;border-radius:6px;border:2px solid var(--dim);display:flex;align-items:center;justify-content:center;color:var(--on-pri)}
 .cb.on,.cb.part{background:var(--pri);border-color:var(--pri)}
+.evc{flex:none;text-align:center;min-width:46px;line-height:1.1;color:var(--ink)}
+.evc b{display:block;font-size:20px;font-weight:700}
+.evc small{font-size:11px;color:var(--sub)}
+.evbanner{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;margin-bottom:8px;background:var(--pri-l);border:1px solid var(--line);border-radius:12px;text-align:left;color:var(--ink)}
+.evbanner svg{flex:none;color:var(--pri)}
+.evbanner .rb{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.evbanner .evc2{flex:none;font-weight:700;color:var(--pri);font-size:13px}
 .cptools{display:flex;align-items:center;gap:4px;margin:0 2px 2px}
 .cptools .cpc{flex:1;font-size:13px;color:var(--sub)}
 .cbtn{flex:none;display:flex;padding:8px;margin:-8px}
@@ -411,7 +418,7 @@ const API = {
 /* ---------- 状態 ---------- */
 const S = {
     pass: null, me: null, admin: null, adminList: null, viewTeam: '', teamNames: [],
-    members: [], tasks: [], logs: {},
+    members: [], tasks: [], logs: {}, events: [], evErr: false, evStatus: 'up',
     tab: 'tasks', taskStatus: 'open', teamFilter: 'all',
     memoDate: today(), memoMode: 'day', memoScope: 'me', memoData: { notes: [], logs: [] }, memoLoaded: false,
     dl: { from: today().slice(0, 8) + '01', to: today(), scope: 'all' },
@@ -660,6 +667,7 @@ const ICON = {
     team: '<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M17 14.3c2.6 0 4.5 2 4.5 4.7"/>',
     memo: '<rect x="6" y="3" width="14" height="18" rx="2"/><path d="M10 8h6M10 12h6M10 16h3M3 7h3M3 12h3M3 17h3"/>',
     chat: '<path d="M4 5h16v11H10l-5 4v-4H4z"/>',
+    flag: '<path d="M5 21V4M5 4h12l-2.5 4L17 12H5"/>',
     more: '<path d="M4 7h9M19 7h1M4 17h1M11 17h9"/><circle cx="16" cy="7" r="2.2"/><circle cx="8" cy="17" r="2.2"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',
     back: '<path d="M15 5l-7 7 7 7"/>',
@@ -674,6 +682,7 @@ const ICON = {
 const svg = (n, sz = 20, sw = 2) => `<svg viewBox="0 0 24 24" width="${sz}" height="${sz}" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[n]}</svg>`;
 const TABS = [
     { id: 'tasks', ic: 'tasks', t: 'タスク' },
+    { id: 'events', ic: 'flag', t: '予定' },
     { id: 'memo', ic: 'memo', t: '記録' },
     { id: 'chat', ic: 'chat', t: 'メッセージ' },
     { id: 'more', ic: 'more', t: '設定' }
@@ -698,16 +707,16 @@ function buildFrame(){
 }
 function renderTop(){
     const refresh = `<button class="icon-btn" data-act="reload" aria-label="更新">${svg('refresh', 20)}</button>`;
-    if (IS_ADMIN() && ['tasks', 'memo', 'chat'].includes(S.tab)) {
+    if (IS_ADMIN() && ['tasks', 'events', 'memo', 'chat'].includes(S.tab)) {
         // 管理者：見ているチームの名前が一番上。タップして切り替える（タスク・記録・メッセージで共通）
         const name = S.viewTeam ? teamLabel(S.viewTeam) : '全チーム';
-        const sub = { tasks: `タスク · ${fmtMD(today())}`, memo: `記録 · ${fmtMD(today())}`, chat: 'メッセージ' }[S.tab];
+        const sub = { tasks: `タスク · ${fmtMD(today())}`, events: `予定 · ${fmtMD(today())}`, memo: `記録 · ${fmtMD(today())}`, chat: 'メッセージ' }[S.tab];
         $('#top').innerHTML = `<div class="tw"><button class="tsw" data-act="teamPick" aria-label="チームを切り替える"><span class="tsw-n">${esc(name)}</span>${svg('chevdown', 20, 2.4)}</button><div class="st">${esc(sub)}</div></div>${refresh}`;
         return;
     }
-    const title = { tasks: 'タスク', memo: '記録', chat: 'メッセージ', more: '設定' }[S.tab];
+    const title = { tasks: 'タスク', events: '予定', memo: '記録', chat: 'メッセージ', more: '設定' }[S.tab];
     const tl = teamLabel(S.me.team);
-    const sub = { tasks: `${tl} · ${fmtMD(today())}`, memo: tl, chat: tl, more: S.me.name }[S.tab];
+    const sub = { tasks: `${tl} · ${fmtMD(today())}`, events: tl, memo: tl, chat: tl, more: S.me.name }[S.tab];
     $('#top').innerHTML = `<div class="tw"><h1>${esc(title)}</h1><div class="st">${esc(sub)}</div></div>${refresh}`;
 }
 function renderTabbar(){
@@ -724,11 +733,12 @@ function render(){
     const main = $('#main'); const sc = main.scrollTop;
     const memoKeep = S.tab === 'memo' && $('#memoText') ? $('#memoText').value : '';
     renderTop(); renderTabbar();
-    const v = { tasks: viewTasks, memo: viewMemo, chat: viewChat, more: viewMore }[S.tab]();
+    const v = { tasks: viewTasks, events: viewEvents, memo: viewMemo, chat: viewChat, more: viewMore }[S.tab]();
     main.innerHTML = v;
     main.scrollTop = sc;
     if (memoKeep && $('#memoText')) $('#memoText').value = memoKeep;
-    $('#fabwrap').innerHTML = S.tab === 'tasks' && !IS_ADMIN() ? `<button class="fab" data-act="newTask" aria-label="タスクを追加">${svg('plus', 26, 2.3)}</button>` : '';
+    $('#fabwrap').innerHTML = S.tab === 'tasks' && !IS_ADMIN() ? `<button class="fab" data-act="newTask" aria-label="タスクを追加">${svg('plus', 26, 2.3)}</button>`
+        : S.tab === 'events' && (IS_ADMIN() || S.me.team) ? `<button class="fab" data-act="newEvent" aria-label="予定を追加">${svg('plus', 26, 2.3)}</button>` : '';
 }
 function softRender(){ if (S.sheets.length || typing()) return; render(); }
 
@@ -822,7 +832,121 @@ function viewTasks(){
     const f = teamless || S.teamFilter === 'me' ? 'me' : 'all';
     const base = f === 'me' ? S.tasks.filter(t => t.assignee_id === S.me.id) : S.tasks;
     const scope = teamless ? '' : `<div class="seg" style="margin-bottom:8px"><button data-act="filter" data-v="me" class="${f === 'me' ? 'on' : ''}">自分</button><button data-act="filter" data-v="all" class="${f === 'all' ? 'on' : ''}">チーム全員</button></div>`;
-    return `${scope}${segHTML(base)}${taskListHTML(base.filter(t => taskBucket(t) === S.taskStatus), true)}`;
+    return `${nextEventHTML()}${scope}${segHTML(base)}${taskListHTML(base.filter(t => taskBucket(t) === S.taskStatus), true)}`;
+}
+
+/* ---------- 予定（試合の日など。タスクと同じく「あと○日」で見せる） ---------- */
+const evRange = e => e.end_date && e.end_date !== e.start_date ? `${fmtMD(e.start_date)}〜${fmtMD(e.end_date)}` : fmtMD(e.start_date);
+function evInfo(e){
+    const t = today(), end = e.end_date || e.start_date;
+    if (end < t) return { st: 'past', cls: 'dropped', label: '終了', big: '' };
+    if (e.start_date <= t) {
+        const n = diffDays(t, e.start_date) + 1, tot = diffDays(end, e.start_date) + 1;
+        return tot > 1 ? { st: 'now', cls: 'today', label: '開催中', big: `<b>${n}</b><small>日目</small>` }
+                       : { st: 'now', cls: 'today', label: '今日', big: '<b>今日</b>' };
+    }
+    const d = diffDays(e.start_date, t);
+    return { st: 'up', cls: d <= 3 ? 'soon' : 'ok', label: d === 1 ? '明日' : `あと${d}日`, big: d === 1 ? '<b>明日</b>' : `<b>${d}</b><small>日後</small>` };
+}
+/* 見えている予定（一般：自分のチーム。管理者：上で選んだチーム、「全チーム」では今あるチームすべて） */
+function visEvents(){
+    if (!IS_ADMIN()) return S.me.team ? S.events.filter(e => e.team === S.me.team) : [];
+    const v = S.viewTeam;
+    if (v) return S.events.filter(e => e.team === (v === '__none__' ? '' : v));
+    return S.events.filter(e => S.teamNames.includes(e.team));
+}
+function nextEventHTML(){
+    if (!S.me.team) return '';
+    const x = visEvents().map(e => ({ e, i: evInfo(e) })).filter(o => o.i.st !== 'past')[0];
+    if (!x) return '';
+    return `<button class="evbanner" data-act="tab" data-v="events">${svg('flag', 20)}<span class="rb"><span class="rt">${esc(x.e.title)}</span><span class="rm">${evRange(x.e)}</span></span><span class="evc2">${x.i.label}</span></button>`;
+}
+function evRow(e, showTeam){
+    const i = evInfo(e);
+    const meta = [`<span class="due ${i.st === 'past' ? '' : i.cls}">${evRange(e)}<span class="dl">${i.st === 'past' ? '' : i.label}</span></span>`, e.place ? `<span>${esc(e.place)}</span>` : '', showTeam ? `<span>${esc(teamLabel(e.team))}</span>` : ''].filter(Boolean).join('');
+    return `<button class="row" data-act="evOpen" data-id="${e.id}"><span class="dot ${i.cls === 'ok' ? '' : i.cls}"></span>
+        <span class="rb"><span class="rt">${esc(e.title)}</span><span class="rm">${meta}</span></span>${i.big ? `<span class="evc">${i.big}</span>` : ''}${svg('chev', 16)}</button>`;
+}
+function viewEvents(){
+    if (S.evErr) return '<div class="empty"><b>予定を読み込めません</b>予定用のSQL（supabase-events.sql）がまだ実行されていない可能性があります</div>';
+    if (!IS_ADMIN() && !S.me.team) return '<div class="empty"><b>チームに参加していません</b>チームに参加すると、チームの予定が見られます</div>';
+    const list = visEvents().map(e => ({ e, i: evInfo(e) }));
+    const up = list.filter(o => o.i.st !== 'past').sort((a, b) => a.e.start_date < b.e.start_date ? -1 : a.e.start_date > b.e.start_date ? 1 : 0);
+    const past = list.filter(o => o.i.st === 'past').sort((a, b) => (b.e.end_date || b.e.start_date) < (a.e.end_date || a.e.start_date) ? -1 : 1);
+    const st = S.evStatus === 'past' ? 'past' : 'up';
+    const b = (v, l, n) => `<button data-act="evStatus" data-v="${v}" class="${st === v ? 'on' : ''}">${l}<span class="c">${n}</span></button>`;
+    const showTeam = IS_ADMIN() && !S.viewTeam;
+    let body;
+    if (st === 'past') body = past.length ? `<div class="list" style="margin-top:10px">${past.map(o => evRow(o.e, showTeam)).join('')}</div>` : '<div class="empty"><b>終了した予定はありません</b></div>';
+    else if (!up.length) body = `<div class="empty"><b>これからの予定はありません</b>${IS_ADMIN() || S.me.team ? '右下の＋から追加できます' : ''}</div>`;
+    else {
+        const G = [['now', '開催中・今日'], ['week', '7日以内'], ['later', 'それ以降']];
+        const grp = o => o.i.st === 'now' ? 'now' : diffDays(o.e.start_date, today()) <= 7 ? 'week' : 'later';
+        body = G.map(([g, label]) => { const its = up.filter(o => grp(o) === g); return its.length ? `<div class="gh">${label}<span class="n">${its.length}</span></div><div class="list">${its.map(o => evRow(o.e, showTeam)).join('')}</div>` : ''; }).join('');
+    }
+    return `<div class="seg">${b('up', 'これから', up.length)}${b('past', '終了', past.length)}</div>${body}`;
+}
+async function loadEvents(){
+    try {
+        const q = { order: 'start_date.asc' };
+        if (!IS_ADMIN()) { if (!S.me.team) { S.events = []; S.evErr = false; return; } q.team = 'eq.' + S.me.team; }
+        S.events = await API.all('lab_events', q); S.evErr = false;
+    } catch (e) { if (isAuthErr(e)) throw e; S.events = []; S.evErr = true; }   // 予定用のSQL未実行でも、ほかの画面は動く
+}
+const evSqlErr = e => e.status === 404 || /lab_events/.test(e.message || '');
+function sheetEvent(top){
+    const e = top.id ? S.events.find(x => x.id === top.id) : null;
+    const tl = viewTeamList().filter(v => v !== '__none__');
+    const v = e || { title: '', start_date: today(), end_date: '', place: '', detail: '', team: (S.viewTeam && tl.includes(S.viewTeam)) ? S.viewTeam : (tl[0] || '') };
+    const teamSel = IS_ADMIN() && !e ? `<label class="l" for="evTeam">チーム</label><select id="evTeam" class="inp">${tl.map(t => `<option value="${esc(t)}" ${t === v.team ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select>` : '';
+    return sheetHead(e ? '予定の編集' : '新しい予定') + `<div class="sheet-body">
+        ${teamSel}
+        <label class="l" style="${teamSel ? '' : 'margin-top:0'}" for="evTitle">予定の名前</label>
+        <input id="evTitle" class="inp" maxlength="80" placeholder="例：地区大会" value="${esc(v.title)}">
+        <div class="grid2"><div><label class="l" for="evStart">日付</label><input id="evStart" class="inp" type="date" value="${v.start_date}"></div>
+          <div><label class="l" for="evEnd">終了日（複数日のとき）</label><input id="evEnd" class="inp" type="date" value="${v.end_date || ''}"></div></div>
+        <label class="l" for="evPlace">場所（任意）</label>
+        <input id="evPlace" class="inp" maxlength="80" placeholder="例：〇〇体育館" value="${esc(v.place)}">
+        <label class="l" for="evDetail">メモ（任意）</label>
+        <textarea id="evDetail" class="inp" rows="3">${esc(v.detail)}</textarea>
+        <p class="err" id="evErr" hidden></p>
+        <div style="height:14px"></div>
+        <button class="btn" data-act="saveEvent">${e ? '保存' : '作成'}</button>
+        ${e ? `<button class="btn ghost bad" style="margin-top:10px" data-act="delEvent" data-id="${e.id}">この予定を削除</button>` : ''}</div>`;
+}
+async function saveEvent(){
+    const top = S.sheets[S.sheets.length - 1];
+    const err = m => { const x = $('#evErr'); x.textContent = m; x.hidden = false; };
+    const title = $('#evTitle').value.trim(), start = $('#evStart').value, end = $('#evEnd').value || null;
+    if (!title) { err('予定の名前を入れてください'); $('#evTitle').focus(); return; }
+    if (!start) { err('日付を入れてください'); return; }
+    if (end && end < start) { err('終了日は、日付より後にしてください'); return; }
+    const place = $('#evPlace').value.trim(), detail = $('#evDetail').value.trim();
+    const btn = document.querySelector('[data-act="saveEvent"]'); btn.disabled = true;
+    try {
+        if (top.id) {
+            const patch = { title, start_date: start, end_date: end, place, detail };
+            await API.patch('lab_events', top.id, patch);
+            Object.assign(S.events.find(x => x.id === top.id), patch);
+            toast('保存しました');
+        } else {
+            const team = IS_ADMIN() ? ($('#evTeam') || {}).value : S.me.team;
+            if (!team) { btn.disabled = false; err('チームがありません'); return; }
+            const row = { id: uuid(), team, title, start_date: start, end_date: end, place, detail, created_by: S.me.id };
+            await API.insert('lab_events', row);
+            S.events.push({ ...row, created_at: new Date().toISOString() });
+            toast('予定を作りました');
+        }
+        S.events.sort((a, b) => a.start_date < b.start_date ? -1 : a.start_date > b.start_date ? 1 : 0);
+        closeSheet();
+    } catch (e) { btn.disabled = false; if (evSqlErr(e)) toast('予定用のSQL（supabase-events.sql）がまだ実行されていません', 5000); else handleErr(e); }
+}
+async function deleteEvent(id){
+    const e = S.events.find(x => x.id === id); if (!e) return;
+    if (!(await askBox({ title: `「${e.title}」を削除しますか？`, ok: '削除する', danger: true, noText: true }))) return;
+    try { await API.del('lab_events', id); } catch (er) { handleErr(er); return; }
+    S.events = S.events.filter(x => x.id !== id);
+    closeSheet(); toast('削除しました');
 }
 
 /* ---------- きろく（日付ごと） ---------- */
@@ -1164,6 +1288,7 @@ async function refreshAll(){
         }
         await loadMembers();
         await loadTasks();
+        await loadEvents();
         saveCache(); updateNew();
         softRender();
         if (S.tab === 'memo') loadMemo();
@@ -1200,6 +1325,7 @@ function renderSheet(){
     let inner = '';
     if (top.type === 'task') inner = sheetTask(top);
     else if (top.type === 'form') inner = sheetForm(top);
+    else if (top.type === 'event') inner = sheetEvent(top);
     else if (top.type === 'room') inner = sheetRoom();
     else if (top.type === 'admin') inner = sheetAdmin();
     else if (top.type === 'team') inner = sheetTeam();
@@ -1425,6 +1551,7 @@ async function renameTeamTo(old, nm){
     await API.patchWhere('lab_members', { team: 'eq.' + old }, { team: nm });
     await API.patchWhere('lab_messages', { team: 'eq.' + old, to_id: 'is.null' }, { team: nm });
     try { await API.patchWhere('lab_teams', { name: 'eq.' + old }, { name: nm }); } catch (e) {}
+    try { await API.patchWhere('lab_events', { team: 'eq.' + old }, { team: nm }); } catch (e) {}
     await ensureTeam(nm);
     return true;
 }
@@ -1570,6 +1697,7 @@ async function purgeTeam(name){
     try {
         if ((await API.rpc('lab_admin_check')) !== true) throw Object.assign(new Error('admin'), { status: 403 });
         await API.delWhere('lab_messages', { team: 'eq.' + name, to_id: 'is.null' });
+        try { await API.delWhere('lab_events', { team: 'eq.' + name }); } catch (e) {}
         await API.delWhere('lab_teams', { name: 'eq.' + name });
     } catch (e) {
         if (e.code === '42501' || e.status === 403) { adminAuthFailed(); return; }
@@ -1838,11 +1966,17 @@ document.addEventListener('click', e => {
             if (v === 'tasks' && IS_ADMIN() && !S.viewTeam) loadAdminTeams().then(() => render());
             if (v === 'chat') { checkUnread(); if (IS_ADMIN()) loadAdminChat(); }
             if (v === 'tasks') refreshAll();
+            if (v === 'events') loadEvents().then(() => softRender()).catch(e => handleErr(e, true));
             break;
         case 'status': S.taskStatus = v; render(); break;
         case 'filter': S.teamFilter = v; render(); break;
         case 'reload': refreshAll(); checkUnread(); if (S.tab === 'memo') loadMemo(); toast('更新しました', 1200); break;
         case 'newTask': pushSheet({ type: 'form', assignee: S.me.id }); break;
+        case 'newEvent': pushSheet({ type: 'event' }); break;
+        case 'evOpen': pushSheet({ type: 'event', id: el.dataset.id }); break;
+        case 'evStatus': S.evStatus = v; render(); break;
+        case 'saveEvent': saveEvent(); break;
+        case 'delEvent': deleteEvent(el.dataset.id); break;
         case 'editTask': pushSheet({ type: 'form', id: el.dataset.id }); break;
         case 'openTask': openTask(el.dataset.id); break;
         case 'back': { const tp = S.sheets[S.sheets.length - 1]; if (tp && tp.type === 'compose' && S.cp && S.cp.step === 2) { S.cp.text = ($('#cpText') || {}).value || ''; S.cp.step = 1; renderSheet(); } else closeSheet(); break; }
