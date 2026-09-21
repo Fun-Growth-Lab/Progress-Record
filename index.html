@@ -218,12 +218,12 @@ select.inp{background-image:linear-gradient(45deg,transparent 50%,var(--sub) 50%
 .evbanner .evc2{flex:none;font-weight:700;color:var(--pri);font-size:13px}
 #tour{position:fixed;inset:0;z-index:80;background:rgba(2,6,16,.66);display:flex;align-items:center;justify-content:center;padding:20px}
 .tourcard{width:100%;max-width:420px;background:var(--card2);border:1px solid var(--line);border-radius:20px;padding:24px 20px 18px;text-align:center}
+.tourcard{position:relative}
+.tourskip{position:absolute;top:10px;right:12px;padding:8px;font-size:13px;font-weight:600;color:var(--sub)}
 .tourcard h2{font-size:20px;margin:12px 0 8px}
 .tourb{font-size:14.5px;line-height:1.75;color:var(--ink);text-align:left}
 .tourb b{color:var(--pri)}
 .touric{width:64px;height:64px;margin:0 auto;border-radius:32px;background:var(--pri-l);color:var(--pri);display:flex;align-items:center;justify-content:center}
-.tourdemo{display:inline-flex;align-items:center;gap:4px;margin:8px 0;padding:6px 14px;border:1px solid var(--line);border-radius:12px;background:var(--card);font-size:18px;font-weight:700}
-.tourdemo svg{color:var(--pri)}
 .dots{display:flex;justify-content:center;gap:6px;margin-top:16px}
 .dots i{width:7px;height:7px;border-radius:4px;background:var(--line)}
 .dots i.on{width:18px;background:var(--pri)}
@@ -628,7 +628,7 @@ async function submitAdminReg(){
         S.admin = null; btn.disabled = false;
         return fail((e.status === 409 || e.code === '23505') ? '同じ名前の管理者のアカウントがあります。アカウント選択から、その名前を選んでください' : /is_admin/.test(e.message || '') ? '管理者マークのSQL（supabase-admin-badge.sql）がまだ実行されていません' : errMsg(e));
     }
-    OB.name = '';
+    OB.name = ''; S.justReg = true;
     setMe(row);
 }
 /* 管理者のアカウントを選んだとき：この端末で最初の1回だけ管理者パスワード */
@@ -728,7 +728,7 @@ function startMain(){
     checkUnread();
     startTimers();
     S.booted = true;
-    if (!ls.get('lab_tour_' + S.me.id)) setTimeout(() => { if (S.me && !S.sheets.length && $('#tour').hidden) openTour(); }, 700);   // はじめての人には、使い方を最初に見せる
+    if (!ls.get('lab_tour_' + S.me.id)) setTimeout(() => { if (S.me && !S.sheets.length && $('#tour').hidden) openTour(true); }, 700);   // はじめての人には、使い方を最初に見せる
 }
 function buildFrame(){
     const app = $('#app'); app.style.height = '';
@@ -840,14 +840,6 @@ function segHTML(list){
     const c = { open: 0, over: 0, done: 0 }; list.forEach(t => { const b = taskBucket(t); if (b) c[b]++; });
     const b = (v, l) => `<button data-act="status" data-v="${v}" class="${S.taskStatus === v ? 'on' : ''}">${l}<span class="c ${v === 'over' && c[v] ? 'bad' : ''}">${c[v]}</span></button>`;
     return `<div class="seg">${b('open', '進行中')}${b('over', '期限切れ')}${b('done', '完了')}</div>`;
-}
-/* 管理者：チームを選ぶ画面（「全チーム」のとき。タスク・記録で共通） */
-function teamSelectHTML(kind){
-    if (!S.at.loaded) return '<div class="empty">読み込み中…</div>';
-    const rows = S.at.teams.map(t => `<button class="row" data-act="vt" data-team="${esc(t.name || '__none__')}"><span class="av">${initial(teamLabel(t.name))}</span><span class="rb"><span class="rt">${esc(teamLabel(t.name))}</span>
-        <span class="rm"><span>${t.members.filter(m => !m.is_hidden).length}人</span>${kind === 'tasks' ? `<span>進行中 ${t.open}</span>${t.overdue ? `<span class="due over">期限切れ ${t.overdue}</span>` : ''}` : ''}<span>直近7日の記録 ${t.recent}件</span></span></span>${svg('chev', 16)}</button>`).join('');
-    return rows ? `<div class="gh" style="margin-top:4px">チームを選んでください<span class="n">${S.at.teams.length}</span></div><div class="list">${rows}</div>`
-                : '<div class="empty"><b>チームはありません</b>「設定」→「チーム管理」から作成できます</div>';
 }
 function viewTasksAdmin(){
     const chips = '';
@@ -992,7 +984,8 @@ const MEMO_SPAN = { day: 1, week: 7, month: 30 };
 /* 選んだ日を「期間の最後の日」として、日=1日・週=7日間・月=30日間 */
 function memoRange(){ const to = S.memoDate; return [addDays(to, -(MEMO_SPAN[S.memoMode] - 1)), to]; }
 function entryHTML(i, noTools){
-    const who = `<b>${nameH(i.member_id)}</b>`;
+    const tm = IS_ADMIN() && !S.viewTeam && mem(i.member_id) ? `<span class="tag">${esc(teamLabel(mem(i.member_id).team))}</span>` : '';
+    const who = `<b>${nameH(i.member_id)}</b>${tm}`;
     if (i.type === 'note') return `<div class="ent"><span class="et">${fmtHM(i.at)}</span><div class="eb"><div class="eh">${who}${noTools ? '' : recTools(i.rec, 'note')}</div><div class="tx">${esc(i.body)}</div></div></div>`;
     const t = findTask(i.task_id);
     return `<div class="ent"><span class="et">${fmtHM(i.at)}</span><div class="eb"><div class="eh"><span class="k k-tk">タスク</span><span class="k k-${i.kind}">${KIND[i.kind] || i.kind}</span>${who}${noTools ? '' : recTools(i.rec, 'log')}</div>
@@ -1000,7 +993,6 @@ function entryHTML(i, noTools){
 }
 function viewMemo(){
     const admin = IS_ADMIN();
-    if (admin && !S.viewTeam) return teamSelectHTML('memo');   // 全チーム：チームを選ぶ画面
     const d = S.memoDate, mode = S.memoMode, sc = admin ? 'all' : S.memoScope;
     const [from, to] = memoRange();
     const { notes } = S.memoData;
@@ -1035,9 +1027,10 @@ function viewMemo(){
 const KIND = { create: '作成', note: '進捗', done: '完了', drop: '破棄', reopen: '再開', assign: '担当変更', due: '期限変更' };
 async function loadMemo(){
     const [from, to] = memoRange(); const key = from + '|' + to;
-    if (IS_ADMIN() && !S.viewTeam) return;
     try {
-        const notes = await API.all('lab_notes', { member_id: inMembers(), and: `(note_date.gte.${from},note_date.lte.${to})`, order: 'created_at.asc' });
+        const all = IS_ADMIN() && !S.viewTeam;   // 全チーム：期間内の記録を全部取って、今あるチームのメンバーの分だけ残す
+        let notes = await API.all('lab_notes', { ...(all ? {} : { member_id: inMembers() }), and: `(note_date.gte.${from},note_date.lte.${to})`, order: 'created_at.asc' });
+        if (all) { const ids = new Set(S.members.map(m => m.id)); notes = notes.filter(n => ids.has(n.member_id)); }
         const [f2, t2] = memoRange(); if (key !== f2 + '|' + t2) return;
         S.memoData = { notes, logs: [] }; S.memoLoaded = true;
         if (S.tab === 'memo') softRender();
@@ -1144,32 +1137,32 @@ function viewChat(){
 /* ---------- 使い方（はじめての人に最初に見せる。設定からもう一度見られる） ---------- */
 const TOUR = {
     member: [
-        { ic: 'tasks', t: '研究進捗アプリへようこそ', b: 'チームの<b>タスク・予定・記録・メッセージ</b>を、みんなで共有するアプリです。下の5つのタブを、順に紹介します。' },
-        { ic: 'tasks', t: 'タスク', b: '期限つきのタスクを作って、<b>チームの誰にでも</b>渡せます。<br>「自分／チーム全員」を切り替え、「進行中・期限切れ・完了」に分けて見られます。右下の<b>＋</b>で追加します。' },
-        { ic: 'flag', t: '予定', b: '試合の日などを「<b>あと○日</b>」で確認できます。複数日の予定（合宿など）も作れます。<br><b>自分のチームの予定</b>は、誰でも追加・編集できます。' },
-        { ic: 'memo', t: '記録', b: '<b>今日やったこと・メモ・気づき</b>を書きます。日付を選んで、日／週／月ごとに振り返れます。自分の記録は、あとから編集できます。' },
-        { ic: 'chat', t: 'メッセージ', b: '<b>同じチームの人と管理者</b>に、個別にメッセージを送れます。「新規メッセージ」では、名前にチェックを付けて、複数の人に一度に送れます。<br>届いたら、タブに赤い印が付きます。' },
-        { ic: 'more', t: '設定', b: '<b>チームの作成・参加・移動・脱退</b>、名前の変更、色のテーマ、CSVのダウンロードができます。<br>タスクと記録は<b>あなたのもの</b>なので、チームを移っても一緒に移ります。<br>この説明は、「設定」の「使い方を見る」でいつでも見られます。' }
+        { ic: 'tasks', t: 'ようこそ', b: 'チームの<b>進捗・予定・連絡</b>をみんなで共有するアプリです。下のタブを、ざっと紹介します。' },
+        { ic: 'tasks', t: 'タスク', b: 'やることを期限つきで作って、<b>チームの誰にでも</b>渡せます。右下の<b>＋</b>で追加します。' },
+        { ic: 'flag', t: '予定', b: '試合の日などを「<b>あと○日</b>」で確認できます。自分のチームの予定は、誰でも追加できます。' },
+        { ic: 'memo', t: '記録', b: '<b>今日やったこと・メモ・気づき</b>を書きます。日・週・月で振り返れます。' },
+        { ic: 'chat', t: 'メッセージ', b: '<b>同じチームの人と管理者</b>に、メッセージを送れます。' },
+        { ic: 'more', t: '設定', b: 'チームの作成・参加・移動、名前の変更、色のテーマなど。<br>この説明は、「設定」の「使い方を見る」でまた見られます。' }
     ],
     admin: [
-        { ic: 'tasks', t: '管理者としてようこそ', b: '管理者は、<b>どのチームにも所属せず</b>、全チームの状況を見て、まとめて管理します。下のタブと、チームの選び方を紹介します。' },
-        { ic: 'team', t: 'チームの選び方', b: '画面の一番上の<b>チーム名（▾）</b>をタップすると、下からチームの一覧が出ます。<div class="tourdemo"><span>全チーム</span><span style="color:var(--pri)">▾</span></div>タスク・予定・記録・メッセージで<b>共通</b>です。<br>「全チーム」のときは、タスクと記録は、チームを選ぶ画面になります。' },
-        { ic: 'tasks', t: 'タスク・記録', b: '選んだチームの、タスクと記録を<b>閲覧</b>できます（管理者は書き込みません）。タスクは「進行中・期限切れ・完了」で見られます。' },
-        { ic: 'flag', t: '予定', b: '「全チーム」では、全チームの予定がチーム名つきで並びます。<br>予定を作るときは、<b>チームにチェック</b>を付けて選びます（最初は全チーム）。共通の予定を、まとめて作れます。' },
-        { ic: 'chat', t: 'メッセージ', b: '「新規メッセージ」で、<b>チームごとにまとめた全員</b>の名前が並びます。チェックを付け外しして、選んだ人に個別に送れます。名前をタップすると、その人との会話を開けます。' },
-        { ic: 'more', t: '設定', b: '<b>チーム管理</b>（作成・名前の変更・アーカイブ・完全な削除）と、<b>メンバー管理</b>（非表示・削除）ができます。<br>この説明は、「設定」の「使い方を見る」でいつでも見られます。' }
+        { ic: 'tasks', t: '管理者の使い方', b: '管理者は、チームに所属せず、<b>全チームを見て管理</b>します。' },
+        { ic: 'team', t: 'チームの選び方', b: '画面の一番上の<b>チーム名（▾）</b>をタップすると、チームの一覧が出ます。「全チーム」を選ぶと、全チームぶんが並びます。' },
+        { ic: 'flag', t: 'タスク・予定・記録', b: 'タスクと記録は<b>見るだけ</b>です。予定は、チームにチェックを付けて、まとめて作れます。' },
+        { ic: 'chat', t: 'メッセージ', b: '名前にチェックを付けて、選んだ人に<b>まとめて</b>送れます。' },
+        { ic: 'more', t: '設定', b: 'チーム管理・メンバー管理はここから。<br>この説明は、「設定」の「使い方を見る」でまた見られます。' }
     ]
 };
-function openTour(){ S.tour = { i: 0 }; renderTour(); }
+function openTour(first){ S.tour = { i: 0, first: !!first }; renderTour(); }
 function renderTour(){
     const steps = IS_ADMIN() ? TOUR.admin : TOUR.member, i = S.tour.i, st = steps[i], last = i === steps.length - 1;
+    const title = IS_ADMIN() && i === 0 && S.tour.first && S.justReg ? '管理者として登録完了しました！' : st.t;
     const el = $('#tour'); el.hidden = false;
-    el.innerHTML = `<div class="tourcard"><div class="touric">${svg(st.ic, 34, 1.8)}</div><h2>${st.t}</h2><div class="tourb">${st.b}</div>
+    el.innerHTML = `<div class="tourcard">${last ? '' : '<button class="tourskip" data-act="tourEnd">スキップ</button>'}<div class="touric">${svg(st.ic, 34, 1.8)}</div><h2>${title}</h2><div class="tourb">${st.b}</div>
       <div class="dots">${steps.map((_, k) => `<i class="${k === i ? 'on' : ''}"></i>`).join('')}</div>
-      <div class="row2" style="margin-top:14px">${i ? '<button class="btn gray" data-act="tourPrev">戻る</button>' : '<button class="btn gray" data-act="tourEnd">スキップ</button>'}<button class="btn" data-act="${last ? 'tourEnd' : 'tourNext'}">${last ? 'はじめる' : '次へ'}</button></div></div>`;
+      <div class="row2" style="margin-top:14px">${i ? '<button class="btn gray" data-act="tourPrev">戻る</button>' : ''}<button class="btn" data-act="${last ? 'tourEnd' : 'tourNext'}">${last ? 'はじめる' : '次へ'}</button></div></div>`;
 }
 function tourGo(d){ const n = (IS_ADMIN() ? TOUR.admin : TOUR.member).length; S.tour.i = Math.max(0, Math.min(n - 1, S.tour.i + d)); renderTour(); }
-function closeTour(){ const el = $('#tour'); el.hidden = true; el.innerHTML = ''; if (S.me) ls.set('lab_tour_' + S.me.id, true); }
+function closeTour(){ const el = $('#tour'); el.hidden = true; el.innerHTML = ''; S.justReg = false; if (S.me) ls.set('lab_tour_' + S.me.id, true); }
 {   // 横にスワイプでも進める
     let x0 = null;
     document.addEventListener('touchstart', e => { x0 = $('#tour').hidden ? null : e.touches[0].clientX; }, { passive: true });
@@ -2072,7 +2065,7 @@ document.addEventListener('click', e => {
     const a = el.dataset.act, v = el.dataset.v;
     switch (a) {
         case 'tab': S.tab = v; render(); $('#main').scrollTop = 0;
-            if (v === 'memo') { S.memoLoaded = false; render(); if (IS_ADMIN() && !S.viewTeam) loadAdminTeams().then(() => render()); else loadMemo(); }
+            if (v === 'memo') { S.memoLoaded = false; render(); loadMemo(); }
             if (v === 'chat') { checkUnread(); if (IS_ADMIN()) loadAdminChat(); }
             if (v === 'tasks') refreshAll();
             if (v === 'events') loadEvents().then(() => softRender()).catch(e => handleErr(e, true));
