@@ -241,6 +241,7 @@ select.inp{background-image:linear-gradient(45deg,transparent 50%,var(--sub) 50%
 .stats b{display:block;font-size:22px;font-weight:700;line-height:1.2}
 .stats span{font-size:12px;color:var(--sub)}
 .stats .bad b{color:var(--bad)}
+.abadge.adv{background:var(--pri)}
 .abadge{display:inline-block;height:17px;line-height:17px;padding:0 6px;margin-left:5px;border-radius:9px;font-size:10px;font-weight:800;letter-spacing:.03em;background:var(--purple);color:var(--bg);vertical-align:1px}
 .tag{display:inline-flex;align-items:center;height:18px;padding:0 7px;border-radius:9px;font-size:11px;font-weight:700;background:var(--card2);color:var(--sub);margin-left:6px}
 
@@ -444,17 +445,23 @@ const mem = id => S.members.find(m => m.id === id);
 const visMembers = () => S.members.filter(m => !m.is_hidden);
 const NAMES = {};   // 他チームの人の名前も表示できるように覚えておく
 const ADMINS = new Set();   // 一度でも管理者としてログインした人（管理者マークを付ける）
+const ADVISORS = new Set();   // アドバイザー（アドバイザーマークを付ける）
+const isSp = m => !!(m && (m.is_admin || m.is_advisor));   // 管理者かアドバイザー（どちらもチームに所属しない）
+const roleLabel = m => m.is_admin ? '管理者' : m.is_advisor ? 'アドバイザー' : '';
 const noteNames = list => (list || []).forEach(m => {
     if (!m || !m.id) return;
     NAMES[m.id] = m.name;
     if ('is_admin' in m) { if (m.is_admin) ADMINS.add(m.id); else ADMINS.delete(m.id); }
+    if ('is_advisor' in m) { if (m.is_advisor) ADVISORS.add(m.id); else ADVISORS.delete(m.id); }
 });
-const adminBadge = id => ADMINS.has(id) ? '<span class="abadge">管理者</span>' : '';
+const adminBadge = id => ADMINS.has(id) ? '<span class="abadge">管理者</span>' : ADVISORS.has(id) ? '<span class="abadge adv">アドバイザー</span>' : '';
 const nameH = id => esc(memName(id)) + adminBadge(id);   // 名前＋管理者マーク（HTML）
 const nameM = m => esc(m.name) + adminBadge(m.id);
-const IS_ADMIN = () => !!(S.me && S.me.admin);   // 管理者：どのチームにも所属せず、全チームを管理する
+const IS_ADMIN = () => !!(S.me && S.me.admin);   // 管理者・アドバイザー：どのチームにも所属せず、全チームを見る
+const IS_ADVISOR = () => !!(S.me && S.me.advisor);   // アドバイザー：全チームの閲覧とメッセージだけ
+const CAN_ADMIN = () => IS_ADMIN() && !IS_ADVISOR();   // 管理者：チーム管理・メンバー管理・予定の作成もできる
 const curTeamName = () => IS_ADMIN() ? S.viewTeam : S.me.team;
-const meFrom = m => ({ id: m.id, name: m.name, team: m.is_admin ? '' : (m.team || ''), admin: !!m.is_admin });
+const meFrom = m => ({ id: m.id, name: m.name, team: isSp(m) ? '' : (m.team || ''), admin: isSp(m), advisor: !!m.is_advisor && !m.is_admin });
 const memName = id => (mem(id) || {}).name || NAMES[id] || '（不明）';
 const findTask = id => S.tasks.find(t => t.id === id) || ((S.tv && S.tv.tasks) || []).find(t => t.id === id);
 
@@ -561,31 +568,43 @@ const obTeams = () => OB.teamList || [];
 function renderAccounts(){
     const all = obVisible();
     const groups = [];
-    const admins = all.filter(m => m.is_admin);
+    const admins = all.filter(m => m.is_admin), advs = all.filter(m => m.is_advisor && !m.is_admin);
     if (admins.length) groups.push(['管理者', admins]);
-    [...new Set(all.filter(m => !m.is_admin).map(m => m.team))].forEach(t => groups.push([teamLabel(t), all.filter(m => !m.is_admin && m.team === t)]));
+    if (advs.length) groups.push(['アドバイザー', advs]);
+    [...new Set(all.filter(m => !isSp(m)).map(m => m.team))].forEach(t => groups.push([teamLabel(t), all.filter(m => !isSp(m) && m.team === t)]));
     shell(`${obHead('obPw')}<div class="ob-body"><h2 class="ob-h">${all.length ? 'アカウント選択' : 'はじめに'}</h2>
       ${groups.map(([label, ms]) => `<div class="gh" style="margin-top:0">${esc(label)}</div><div class="list" style="margin-bottom:14px">${ms.map(m =>
         `<button class="row" data-act="pickMe" data-id="${m.id}"><span class="av">${initial(m.name)}</span><span class="rb"><span class="rt">${nameM(m)}</span></span>${svg('chev', 16)}</button>`).join('')}</div>`).join('')}
       <div class="gh" style="margin-top:${all.length ? 8 : 0}px">はじめて使う</div>
       <div class="list"><button class="row" data-act="regStart"><span class="rb"><span class="rt">メンバーとして新規登録</span><span class="rm">名前とチームを登録します</span></span>${svg('chev', 16)}</button>
+        <button class="row" data-act="regAdvisor"><span class="rb"><span class="rt">アドバイザーとして新規登録</span><span class="rm">チームには所属せず、全チームを見られます</span></span>${svg('chev', 16)}</button>
         <button class="row" data-act="regAdmin"><span class="rb"><span class="rt">管理者として新規登録</span><span class="rm">チームには所属しません（管理者パスワードが必要）</span></span>${svg('chev', 16)}</button></div>
       ${footLinks()}</div>`);
 }
 /* 新規登録 1/2：名前（一般・管理者 共通） */
 function renderRegName(err){
-    const adm = OB.kind === 'admin';
-    shell(`${obHead('obAccounts', '1 / 2')}<div class="ob-body"><h2 class="ob-h">${adm ? '管理者登録：名前' : '名前登録'}</h2>
+    const adm = OB.kind === 'admin', adv = OB.kind === 'advisor';
+    shell(`${obHead('obAccounts', adv ? '' : '1 / 2')}<div class="ob-body"><h2 class="ob-h">${adm ? '管理者登録：名前' : adv ? 'アドバイザー登録：名前' : '名前登録'}</h2>
       <form id="nameForm"><label class="l" for="rName" style="margin-top:0">名前</label>
       <input id="rName" class="inp" maxlength="20" autocomplete="off" value="${esc(OB.name)}">
       <p class="err" id="rerr" ${err ? '' : 'hidden'}>${esc(err || '')}</p>
-      <div style="height:14px"></div><button class="btn" type="submit">次へ</button></form></div>`);
+      <div style="height:14px"></div><button class="btn" id="nameBtn" type="submit">${adv ? '登録' : '次へ'}</button></form>
+      ${adv ? '<p class="hint" style="margin:14px 2px 0">アドバイザーは、どのチームにも所属せず、全チームの情報を見て、全チームのメンバーにメッセージを送れます。ログインは、アプリのパスワードだけです。</p>' : ''}</div>`);
     $('#nameForm').onsubmit = e => {
         e.preventDefault();
         OB.name = $('#rName').value.trim();
         if (!OB.name) { const er = $('#rerr'); er.textContent = '名前を入力してください'; er.hidden = false; return; }
-        if (adm) renderAdminPw(); else renderRegTeam();
+        if (adv) submitAdvisorReg(); else if (adm) renderAdminPw(); else renderRegTeam();
     };
+}
+async function submitAdvisorReg(){
+    const fail = m => { const er = $('#rerr'); er.textContent = m; er.hidden = false; };
+    const btn = $('#nameBtn'); btn.disabled = true;
+    const row = { id: uuid(), name: OB.name, team: '', is_advisor: true };
+    try { await API.insert('lab_members', row); }
+    catch (e) { btn.disabled = false; return fail((e.status === 409 || e.code === '23505') ? '同じ名前のアドバイザーのアカウントがあります。アカウント選択から、その名前を選んでください' : /is_advisor/.test(e.message || '') ? 'アドバイザー用のSQL（supabase-advisor.sql）がまだ実行されていません' : errMsg(e)); }
+    OB.name = ''; S.justReg = true;
+    setMe(row);
 }
 /* 管理者パスワードの確認。成功すると、この端末に保存する（以後は聞かない）。戻り値：エラー文（成功なら空） */
 async function verifyAdminPw(input){
@@ -674,15 +693,18 @@ async function submitReg(){
 function useSavedMe(saved){
     S.me = saved;
     if (saved.admin) {
-        S.admin = ls.get('lab_admin_hash'); S.viewTeam = ls.get('lab_view_team', '');
-        if (!S.admin) { ls.del('lab_me'); S.me = null; enterWho(); return; }   // この端末に管理者の保存がない：アカウント選択から
+        S.viewTeam = ls.get('lab_view_team', '');
+        if (!saved.advisor) {   // アドバイザーは、アプリのパスワードだけ。管理者だけが管理者パスワードを使う
+            S.admin = ls.get('lab_admin_hash');
+            if (!S.admin) { ls.del('lab_me'); S.me = null; enterWho(); return; }   // この端末に管理者の保存がない：アカウント選択から
+        }
     }
     startMain();
 }
 function setMe(m){
     S.me = meFrom(m);
     ls.set('lab_me', S.me);
-    if (S.me.admin) { S.admin = ls.get('lab_admin_hash'); S.viewTeam = ls.get('lab_view_team', ''); }
+    if (S.me.admin) { if (!S.me.advisor) S.admin = ls.get('lab_admin_hash'); S.viewTeam = ls.get('lab_view_team', ''); }
     startMain();
 }
 
@@ -767,7 +789,7 @@ function render(){
     main.scrollTop = sc;
     if (memoKeep && $('#memoText')) $('#memoText').value = memoKeep;
     $('#fabwrap').innerHTML = S.tab === 'tasks' && !IS_ADMIN() ? `<button class="fab" data-act="newTask" aria-label="タスクを追加">${svg('plus', 26, 2.3)}</button>`
-        : S.tab === 'events' && (IS_ADMIN() || S.me.team) ? `<button class="fab" data-act="newEvent" aria-label="予定を追加">${svg('plus', 26, 2.3)}</button>` : '';
+        : S.tab === 'events' && (CAN_ADMIN() || (!IS_ADMIN() && S.me.team)) ? `<button class="fab" data-act="newEvent" aria-label="予定を追加">${svg('plus', 26, 2.3)}</button>` : '';
 }
 function softRender(){ if (S.sheets.length || typing()) return; render(); }
 
@@ -913,7 +935,7 @@ function viewEvents(){
     const showTeam = IS_ADMIN() && !S.viewTeam;
     let body;
     if (st === 'past') body = past.length ? `<div class="list" style="margin-top:10px">${past.map(o => evRow(o.e, showTeam)).join('')}</div>` : '<div class="empty"><b>終了した予定はありません</b></div>';
-    else if (!up.length) body = `<div class="empty"><b>これからの予定はありません</b>${IS_ADMIN() || S.me.team ? '右下の＋から追加できます' : ''}</div>`;
+    else if (!up.length) body = `<div class="empty"><b>これからの予定はありません</b>${CAN_ADMIN() || (!IS_ADMIN() && S.me.team) ? '右下の＋から追加できます' : ''}</div>`;
     else {
         const G = [['now', '開催中・今日'], ['week', '7日以内'], ['later', 'それ以降']];
         const grp = o => o.i.st === 'now' ? 'now' : diffDays(o.e.start_date, today()) <= 7 ? 'week' : 'later';
@@ -937,7 +959,7 @@ function sheetEvent(top){
     const teamSel = IS_ADMIN() && !e ? `<div class="cptools" style="margin-top:0"><span class="cpc" style="font-weight:700">チーム（${top.sel.size} / ${tl.length}）</span><button class="linkb" data-act="evAll">全部付ける</button><button class="linkb" data-act="evNone">全部外す</button></div>
         <div class="list">${tl.map(t => `<button class="row" data-act="evTeam" data-t="${esc(t)}" style="min-height:44px">${cbHTML(top.sel.has(t) ? 'on' : 'off')}<span class="rb"><span class="rt">${esc(t)}</span></span></button>`).join('') || '<div class="empty">チームがありません</div>'}</div>` : '';
     const grp = e && top.ids && top.ids.length > 1 ? top.ids.map(id => (S.events.find(x => x.id === id) || {}).team) : null;
-    return sheetHead(e ? '予定の編集' : '新しい予定') + `<div class="sheet-body">
+    const html = sheetHead(IS_ADVISOR() ? '予定' : e ? '予定の編集' : '新しい予定') + `<div class="sheet-body">
         ${grp ? `<div class="card"><div class="hint">この予定は、<b>${grp.length}チーム</b>（${esc(grp.map(teamLabel).join('・'))}）に共通です。変更・削除は、すべてに反映されます。</div></div>` : ''}
         ${teamSel}
         <label class="l" style="${teamSel ? '' : 'margin-top:0'}" for="evTitle">予定の名前</label>
@@ -952,6 +974,8 @@ function sheetEvent(top){
         <div style="height:14px"></div>
         <button class="btn" data-act="saveEvent">${e ? '保存' : '作成'}</button>
         ${e ? `<button class="btn ghost bad" style="margin-top:10px" data-act="delEvent" data-id="${e.id}" data-ids="${(top.ids || [e.id]).join(',')}">${grp ? `この予定を削除（${grp.length}チームぶん）` : 'この予定を削除'}</button>` : ''}</div>`;
+    if (!IS_ADVISOR()) return html;   // アドバイザーは見るだけ：入力欄を無効にし、保存・削除ボタンを外す
+    return html.replace(/<(input|textarea|select) /g, '<$1 disabled ').replace(/<button class="btn"[^>]*data-act="saveEvent">[^<]*<\/button>/, '').replace(/<button class="btn ghost bad"[^>]*data-act="delEvent"[^>]*>[^<]*<\/button>/, '');
 }
 async function saveEvent(){
     const top = S.sheets[S.sheets.length - 1];
@@ -1134,13 +1158,13 @@ function viewChat(){
         if (!A) return '<div class="empty">読み込み中…</div>';
         const people = A.all.filter(m => !m.is_hidden && m.id !== S.me.id);
         const t = S.viewTeam;
-        if (t) return top + (grp(teamLabel(t), people.filter(m => !m.is_admin && (m.team || '') === (t === '__none__' ? '' : t))) || '<div class="empty">メンバーがいません</div>');
+        if (t) return top + (grp(teamLabel(t), people.filter(m => !isSp(m) && (m.team || '') === (t === '__none__' ? '' : t))) || '<div class="empty">メンバーがいません</div>');
         const unreadPeople = people.filter(m => S.unread[m.id]);
         let html = top;
-        if (unreadPeople.length) html += `<div class="gh">未読<span class="n">${unreadPeople.length}</span></div><div class="list">${unreadPeople.map(m => row(m.id, initial(m.name), nameM(m), m.is_admin ? '管理者' : teamLabel(m.team))).join('')}</div>`;
-        html += grp('管理者', people.filter(m => m.is_admin));
-        A.list.forEach(([tn]) => { html += grp(tn, people.filter(m => !m.is_admin && m.team === tn)); });
-        html += grp('所属なし', people.filter(m => !m.is_admin && !m.team));
+        if (unreadPeople.length) html += `<div class="gh">未読<span class="n">${unreadPeople.length}</span></div><div class="list">${unreadPeople.map(m => row(m.id, initial(m.name), nameM(m), isSp(m) ? roleLabel(m) : teamLabel(m.team))).join('')}</div>`;
+        html += grp('管理者・アドバイザー', people.filter(isSp));
+        A.list.forEach(([tn]) => { html += grp(tn, people.filter(m => !isSp(m) && m.team === tn)); });
+        html += grp('所属なし', people.filter(m => !isSp(m) && !m.team));
         return html + '<div class="hint" style="margin:14px 4px">名前をタップすると、その人とのメッセージが開きます。</div>';
     }
     // 一般のメンバー：同じチームの人と、管理者にだけ送れる
@@ -1148,7 +1172,7 @@ function viewChat(){
     const admins = (S.admins || []).filter(a => a.id !== S.me.id && !others.some(o => o.id === a.id));
     let html = top;
     if (S.me.team) html += `<div class="gh">${esc(S.me.team)}<span class="n">${others.length}</span></div>` + (others.length ? `<div class="list">${others.map(m => row(m.id, initial(m.name), nameM(m))).join('')}</div>` : '<div class="empty">ほかのメンバーがいません</div>');
-    if (admins.length) html += `<div class="gh">管理者<span class="n">${admins.length}</span></div><div class="list">${admins.map(a => row(a.id, initial(a.name), nameM(a), 'いつでも送れます')).join('')}</div>`;
+    if (admins.length) html += `<div class="gh">管理者・アドバイザー<span class="n">${admins.length}</span></div><div class="list">${admins.map(a => row(a.id, initial(a.name), nameM(a), 'いつでも送れます')).join('')}</div>`;
     if (!S.me.team && !admins.length) html += '<div class="empty"><b>メッセージを送れる相手がいません</b>チームに参加すると、チームの人に送れます</div>';
     return html;
 }
@@ -1163,6 +1187,13 @@ const TOUR = {
         { ic: 'chat', t: 'メッセージ', b: '<b>同じチームの人と管理者</b>に、メッセージを送れます。' },
         { ic: 'more', t: '設定', b: 'チームの作成・参加・移動、名前の変更、色のテーマなど。<br>この説明は、「設定」の「使い方を見る」でまた見られます。' }
     ],
+    advisor: [
+        { ic: 'tasks', t: 'アドバイザーの使い方', b: 'アドバイザーは、チームに所属せず、<b>全チームの情報を見られます</b>。' },
+        { ic: 'team', t: 'チームの選び方', b: '画面の一番上の<b>チーム名（▾）</b>をタップすると、チームの一覧が出ます。「全チーム」を選ぶと、全チームぶんが並びます。' },
+        { ic: 'flag', t: 'タスク・予定・記録', b: 'すべて<b>見るだけ</b>です。' },
+        { ic: 'chat', t: 'メッセージ', b: '名前にチェックを付けて、全チームの人に<b>まとめて</b>送れます。メンバーからも、メッセージが届きます。' },
+        { ic: 'more', t: '設定', b: '名前の変更、色のテーマなど。<br>この説明は、「設定」の「使い方を見る」でまた見られます。' }
+    ],
     admin: [
         { ic: 'tasks', t: '管理者の使い方', b: '管理者は、チームに所属せず、<b>全チームを見て管理</b>します。' },
         { ic: 'team', t: 'チームの選び方', b: '画面の一番上の<b>チーム名（▾）</b>をタップすると、チームの一覧が出ます。「全チーム」を選ぶと、全チームぶんが並びます。' },
@@ -1171,16 +1202,17 @@ const TOUR = {
         { ic: 'more', t: '設定', b: 'チーム管理・メンバー管理はここから。<br>この説明は、「設定」の「使い方を見る」でまた見られます。' }
     ]
 };
+const tourSet = () => IS_ADVISOR() ? TOUR.advisor : IS_ADMIN() ? TOUR.admin : TOUR.member;
 function openTour(first){ S.tour = { i: 0, first: !!first }; renderTour(); }
 function renderTour(){
-    const steps = IS_ADMIN() ? TOUR.admin : TOUR.member, i = S.tour.i, st = steps[i], last = i === steps.length - 1;
-    const title = IS_ADMIN() && i === 0 && S.tour.first && S.justReg ? '管理者として登録完了しました！' : st.t;
+    const steps = tourSet(), i = S.tour.i, st = steps[i], last = i === steps.length - 1;
+    const title = IS_ADMIN() && i === 0 && S.tour.first && S.justReg ? (IS_ADVISOR() ? 'アドバイザーとして登録完了しました！' : '管理者として登録完了しました！') : st.t;
     const el = $('#tour'); el.hidden = false;
     el.innerHTML = `<div class="tourcard">${last ? '' : '<button class="tourskip" data-act="tourEnd">スキップ</button>'}<div class="touric">${svg(st.ic, 34, 1.8)}</div><h2>${title}</h2><div class="tourb">${st.b}</div>
       <div class="dots">${steps.map((_, k) => `<i class="${k === i ? 'on' : ''}"></i>`).join('')}</div>
       <div class="row2" style="margin-top:14px">${i ? '<button class="btn gray" data-act="tourPrev">戻る</button>' : ''}<button class="btn" data-act="${last ? 'tourEnd' : 'tourNext'}">${last ? 'はじめる' : '次へ'}</button></div></div>`;
 }
-function tourGo(d){ const n = (IS_ADMIN() ? TOUR.admin : TOUR.member).length; S.tour.i = Math.max(0, Math.min(n - 1, S.tour.i + d)); renderTour(); }
+function tourGo(d){ const n = tourSet().length; S.tour.i = Math.max(0, Math.min(n - 1, S.tour.i + d)); renderTour(); }
 function closeTour(){ const el = $('#tour'); el.hidden = true; el.innerHTML = ''; S.justReg = false; if (S.me) ls.set('lab_tour_' + S.me.id, true); }
 {   // 横にスワイプでも進める
     let x0 = null;
@@ -1195,8 +1227,8 @@ function closeTour(){ const el = $('#tour'); el.hidden = true; el.innerHTML = ''
 function viewMore(){
     const d = S.dl; const cur = THEMES[ls.get('lab_theme', 'solar')] ? ls.get('lab_theme', 'solar') : 'solar';
     const chev = svg('chev', 16);
-    return `<div class="card acc"><span class="av lg">${initial(S.me.name)}</span><div class="rb"><b>${esc(S.me.name)}${adminBadge(S.me.id)}</b><span class="t">${IS_ADMIN() ? '管理者' : esc(teamLabel(S.me.team))}</span></div><button class="btn gray sm" data-act="rename">名前変更</button></div>
-      ${IS_ADMIN() ? `<div class="gh">管理</div>
+    return `<div class="card acc"><span class="av lg">${initial(S.me.name)}</span><div class="rb"><b>${esc(S.me.name)}${adminBadge(S.me.id)}</b><span class="t">${IS_ADVISOR() ? 'アドバイザー' : IS_ADMIN() ? '管理者' : esc(teamLabel(S.me.team))}</span></div><button class="btn gray sm" data-act="rename">名前変更</button></div>
+      ${IS_ADVISOR() ? '' : IS_ADMIN() ? `<div class="gh">管理</div>
       <div class="list"><button class="row" data-act="admTeams"><span class="rb"><span class="rt">チーム管理</span><span class="rm">作成・名前の変更・削除・メッセージ</span></span>${chev}</button>
         <button class="row" data-act="admOpen"><span class="rb"><span class="rt">メンバー管理</span><span class="rm">非表示・元に戻す・削除</span></span>${chev}</button></div>` : `      <div class="gh">チーム</div>
       <div class="list">${S.me.team ? `<button class="row" data-act="teamRename"><span class="rb"><span class="rt">チーム名を変更</span><span class="rm">現在：${esc(S.me.team)}（メンバー全員に反映）</span></span>${chev}</button>` : ''}
@@ -1269,8 +1301,8 @@ const inMembers = () => `in.(${memberIds().join(',')})`;
 async function loadMembers(){
     if (IS_ADMIN()) {   // 管理者：選んだチームのメンバー
         const t = S.viewTeam;
-        S.members = !t ? (S.adminAll ? S.adminAll.all : []).filter(m => !m.is_admin && S.teamNames.includes(m.team))   // 全チーム：今あるチームのメンバー全員
-                       : t === '__none__' ? (await API.list('lab_members', { team: 'eq.', order: 'created_at.asc' })).filter(m => !m.is_admin)
+        S.members = !t ? (S.adminAll ? S.adminAll.all : []).filter(m => !isSp(m) && S.teamNames.includes(m.team))   // 全チーム：今あるチームのメンバー全員
+                       : t === '__none__' ? (await API.list('lab_members', { team: 'eq.', order: 'created_at.asc' })).filter(m => !isSp(m))
                                               : await API.list('lab_members', { team: 'eq.' + t, order: 'created_at.asc' });
     } else {
         S.members = S.me.team ? await API.list('lab_members', { team: 'eq.' + S.me.team, order: 'created_at.asc' })
@@ -1289,7 +1321,7 @@ async function loadTasks(){
 /* 他の端末でチームや名前が変わったときに、この端末の情報を合わせる */
 function adoptMe(m){
     const nm = meFrom(m);
-    const changed = nm.team !== S.me.team || nm.admin !== S.me.admin;
+    const changed = nm.team !== S.me.team || nm.admin !== S.me.admin || nm.advisor !== S.me.advisor;
     S.me = nm; ls.set('lab_me', S.me);
     if (!changed) return;
     S.members = []; S.tasks = []; S.logs = {}; S.memoData = { notes: [], logs: [] }; S.memoLoaded = false;
@@ -1297,7 +1329,7 @@ function adoptMe(m){
     ls.del('lab_cache'); $('#sheet').hidden = true; $('#sheet').innerHTML = '';
 }
 /* 管理者：チーム一覧を読み込む（タスク・記録で選ぶチーム） */
-const viewTeamList = () => [...S.teamNames, ...(S.adminAll && S.adminAll.all.some(m => !m.team && !m.is_admin && !m.is_hidden) ? ['__none__'] : [])];
+const viewTeamList = () => [...S.teamNames, ...(S.adminAll && S.adminAll.all.some(m => !m.team && !isSp(m) && !m.is_hidden) ? ['__none__'] : [])];
 async function loadAdminBase(){
     const t = await fetchTeams(); S.adminAll = t; S.teamNames = t.list.map(([n]) => n);
     if (S.viewTeam && !viewTeamList().includes(S.viewTeam)) S.viewTeam = '';
@@ -1305,7 +1337,7 @@ async function loadAdminBase(){
 /* 管理者：チームの選択（画面下から出る縦スクロールの一覧。現在のチームにチェック） */
 function teamPickOptions(){
     const at = S.at.loaded ? S.at.teams : [];
-    const unread = v => (S.adminAll ? S.adminAll.all : []).filter(m => !m.is_admin && (m.team || '') === (v === '__none__' ? '' : v)).reduce((a, m) => a + (S.unread[m.id] || 0), 0);
+    const unread = v => (S.adminAll ? S.adminAll.all : []).filter(m => !isSp(m) && (m.team || '') === (v === '__none__' ? '' : v)).reduce((a, m) => a + (S.unread[m.id] || 0), 0);
     const opts = [];
     opts.push({ v: '', label: '全チーム', meta: `${S.teamNames.length}チーム`, un: Object.values(S.unread).reduce((a, b) => a + b, 0) });
     viewTeamList().forEach(v => {
@@ -1367,11 +1399,13 @@ async function refreshAll(){
             toast('登録が見つかりません。アカウントを選び直してください', 4000); switchAccount(true); return;
         }
         if (self.is_hidden) { toast('このアカウントは使えなくなっています。管理者に連絡してください', 5000); switchAccount(true); return; }
-        const st = self.is_admin ? '' : self.team;
-        if (st !== S.me.team || self.name !== S.me.name || !!self.is_admin !== !!S.me.admin) { adoptMe(self); render(); }
+        const st = isSp(self) ? '' : self.team;
+        if (st !== S.me.team || self.name !== S.me.name || isSp(self) !== !!S.me.admin || !!self.is_advisor !== !!S.me.advisor) { adoptMe(self); render(); }
         if (IS_ADMIN()) {
-            if (!S.admin) { switchAccount(true); return; }
-            if ((await API.rpc('lab_admin_check')) !== true) { adminAuthFailed(); return; }
+            if (CAN_ADMIN()) {
+                if (!S.admin) { switchAccount(true); return; }
+                if ((await API.rpc('lab_admin_check')) !== true) { adminAuthFailed(); return; }
+            }
             await loadAdminBase();
             if ((S.tab === 'tasks' || S.tab === 'memo') && !S.viewTeam) await loadAdminTeams();
         }
@@ -1665,7 +1699,7 @@ async function loadAdminTeams(){
         const teamOf = {}; all.forEach(m => { teamOf[m.id] = m.team; });
         const mk = (name, members) => ({ name, members, open: 0, overdue: 0, done: 0, recent: 0 });
         const rows = list.map(([name]) => mk(name, all.filter(m => m.team === name)));
-        const none = all.filter(m => !m.team && !m.is_admin);
+        const none = all.filter(m => !m.team && !isSp(m));
         if (none.length) rows.push(mk('', none));
         const byName = Object.fromEntries(rows.map(r => [r.name, r]));
         tasks.forEach(t => { const r = byName[teamOf[t.assignee_id]]; if (!r) return; const b = taskBucket(t); if (b === 'open') r.open++; else if (b === 'over') r.overdue++; else if (b === 'done') r.done++; });
@@ -1796,7 +1830,7 @@ async function purgeTeam(name){
     await loadAdminTeams(); await loadAdminBase(); renderSheet(); render(); toast(`チーム「${name}」を完全に削除しました`);
 }
 async function loadAdmins(){
-    try { S.admins = await API.list('lab_members', { select: 'id,name,team,is_admin', is_admin: 'eq.true' }); noteNames(S.admins); }
+    try { const all = await API.list('lab_members', {}); noteNames(all); S.admins = all.filter(m => !m.is_hidden && isSp(m)); }
     catch (e) { S.admins = []; }   // 管理者マークのSQL未実行のときは、管理者の一覧は出ない
 }
 async function loadAdminChat(){
@@ -1807,9 +1841,10 @@ async function loadAdminChat(){
 function adminListHTML(){
     if (!S.adminList) return '<div class="empty">読み込み中…</div>';
     const groups = [];
-    const ads = S.adminList.filter(m => m.is_admin);
+    const ads = S.adminList.filter(m => m.is_admin), advs = S.adminList.filter(m => m.is_advisor && !m.is_admin);
     if (ads.length) groups.push(['管理者', ads]);
-    [...new Set(S.adminList.filter(m => !m.is_admin).map(m => m.team))].forEach(t => groups.push([teamLabel(t), S.adminList.filter(m => !m.is_admin && m.team === t)]));
+    if (advs.length) groups.push(['アドバイザー', advs]);
+    [...new Set(S.adminList.filter(m => !isSp(m)).map(m => m.team))].forEach(t => groups.push([teamLabel(t), S.adminList.filter(m => !isSp(m) && m.team === t)]));
     const sel = S.admSel;
     const info = m => `<span class="rb"><span class="rt">${nameM(m)}${S.me && m.id === S.me.id ? '<span class="tag">この端末</span>' : ''}${m.is_hidden ? '<span class="tag">非表示中</span>' : ''}</span></span>`;
     const row = m => sel
@@ -1841,7 +1876,7 @@ async function deleteMembers(ids){
     const who = ms.length <= 3 ? ms.map(m => m.name + 'さん').join('、') : `${ms.length}人`;
     if (!(await askBox({ title: `${who}を完全に削除しますか？`, ok: '完全に削除', danger: true, noText: true,
         desc: 'アカウントと、その人のタスク・記録・メッセージを、データベースから消します。元に戻せません。\n（一覧から外したいだけのときは「非表示」にしてください）'
-            + (ms.some(m => m.is_admin) ? '\n管理者のアカウントも含まれます。' : '') + (self ? '\nあなた自身も含まれます。この端末はアカウント選択に戻ります。' : '') }))) return;
+            + (ms.some(m => m.is_admin) ? '\n管理者のアカウントも含まれます。' : '') + (ms.some(m => m.is_advisor) ? '\nアドバイザーのアカウントも含まれます。' : '') + (self ? '\nあなた自身も含まれます。この端末はアカウント選択に戻ります。' : '') }))) return;
     try {
         if ((await API.rpc('lab_admin_check')) !== true) throw Object.assign(new Error('admin'), { status: 403 });
         await API.delWhere('lab_members', { id: `in.(${ms.map(m => m.id).join(',')})` });
@@ -1885,19 +1920,19 @@ function cpGroups(){
     if (IS_ADMIN()) {
         const A = S.adminAll; if (!A) return [];
         const people = A.all.filter(m => !m.is_hidden && m.id !== S.me.id);
-        const mem = people.filter(m => !m.is_admin);
+        const mem = people.filter(m => !isSp(m));
         const groups = A.list.map(([t]) => ({ k: t, label: t, ms: mem.filter(m => m.team === t) })).filter(g => g.ms.length);
         const none = mem.filter(m => !m.team);
         if (none.length) groups.push({ k: '__none__', label: '所属なし', ms: none });
-        const ads = people.filter(m => m.is_admin);
-        if (ads.length) groups.push({ k: '__admin__', label: '管理者', ms: ads });
+        const ads = people.filter(isSp);
+        if (ads.length) groups.push({ k: '__admin__', label: '管理者・アドバイザー', ms: ads });
         return groups;
     }
     const others = visMembers().filter(m => m.id !== S.me.id);
     const admins = (S.admins || []).filter(a => a.id !== S.me.id && !others.some(o => o.id === a.id));
     const groups = [];
     if (others.length) groups.push({ k: 'team', label: teamLabel(S.me.team), ms: others });
-    if (admins.length) groups.push({ k: '__admin__', label: '管理者', ms: admins });
+    if (admins.length) groups.push({ k: '__admin__', label: '管理者・アドバイザー', ms: admins });
     return groups;
 }
 const cpAllIds = () => cpGroups().flatMap(g => g.ms.map(m => m.id));
@@ -2163,6 +2198,7 @@ document.addEventListener('click', e => {
         case 'tourPrev': tourGo(-1); break;
         case 'tourEnd': closeTour(); break;
         case 'regStart': OB.kind = 'member'; OB.name = ''; OB.team = ''; OB.newTeam = ''; OB.mode = 'select'; renderRegName(); break;
+        case 'regAdvisor': OB.kind = 'advisor'; OB.name = ''; renderRegName(); break;
         case 'regAdmin': OB.kind = 'admin'; OB.name = ''; renderRegName(); break;
         case 'vt': setViewTeam(el.dataset.team); break;
         case 'teamPick': openTeamPicker(); break;
