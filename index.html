@@ -758,7 +758,7 @@ function viewMemo(){
         <button class="icon-btn" data-act="memoShift" data-v="1" aria-label="次へ">${svg('chev', 20)}</button></div>
       ${mode !== 'day' ? `<div class="hint" style="text-align:center;margin:-2px 0 6px">${fmtMD(from)} 〜 ${fmtMD(to)}</div>` : ''}
       ${d !== today() ? `<div style="text-align:center;margin:-4px 0 6px"><button class="linkb" data-act="memoToday">今日にもどる</button></div>` : ''}
-      ${mode === 'day' ? `<div class="card"><textarea id="memoText" class="inp" rows="2" placeholder="今日やったこと・メモなど"></textarea>
+      ${mode === 'day' ? `<div class="card"><textarea id="memoText" class="inp" rows="2" placeholder="（やったこと・メモ・気づき）"></textarea>
         <div style="height:8px"></div><button class="btn" data-act="addMemo">記録する</button></div>` : ''}
       <div class="ctl">${seg('memoMode', mode, [['day', '日'], ['week', '週'], ['month', '月']])}${seg('memoScope', sc, [['me', '自分'], ['all', 'チーム全員']])}</div>
       ${listHTML}`;
