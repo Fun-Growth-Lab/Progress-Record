@@ -214,15 +214,6 @@ select.inp{background-image:linear-gradient(45deg,transparent 50%,var(--sub) 50%
 .pbar i{display:block;height:3px;border-radius:2px;background:var(--pri)}
 .crumb{display:flex;flex-wrap:wrap;align-items:center;gap:2px 4px;margin:2px 0 4px;font-size:12px;color:var(--sub)}
 .crumb button{color:var(--pri);font-size:12px;font-weight:600;padding:2px 2px;max-width:11em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.subrow{display:flex;align-items:center;gap:6px;min-height:48px;padding:6px 10px 6px 6px}
-.subchev{flex:none;width:22px;height:30px;display:flex;align-items:center;justify-content:center;color:var(--sub)}
-.subrow .cir{flex:none;width:20px;height:20px;border-radius:50%;border:2px solid var(--dim);display:flex;align-items:center;justify-content:center;color:var(--on-pri);padding:0}
-.subrow .cir.d{background:var(--ok);border-color:var(--ok)}
-.subt{flex:1;min-width:0;display:flex;flex-direction:column;text-align:left;color:var(--ink);font-size:15px;font-weight:600;line-height:1.35;word-break:break-word}
-.subt .sdone{text-decoration:line-through;color:var(--sub);font-weight:500}
-.subt .rm{font-size:12px;font-weight:400;color:var(--sub);display:flex;flex-wrap:wrap;gap:0 8px}
-.subadd{display:flex;gap:8px;align-items:center;margin-top:8px}
-.subadd .inp{flex:1;min-width:0}
 .cb{flex:none;width:22px;height:22px;border-radius:6px;border:2px solid var(--dim);display:flex;align-items:center;justify-content:center;color:var(--on-pri)}
 .cb.on,.cb.part{background:var(--pri);border-color:var(--pri)}
 .evc{flex:none;text-align:center;min-width:46px;line-height:1.1;color:var(--ink)}
@@ -448,7 +439,7 @@ const API = {
 /* ---------- 状態 ---------- */
 const S = {
     pass: null, me: null, admin: null, adminList: null, viewTeam: '', teamNames: [],
-    members: [], tasks: [], logs: {}, subFold: new Set(), events: [], evErr: false, evStatus: 'up',
+    members: [], tasks: [], logs: {}, events: [], evErr: false, evStatus: 'up',
     tab: 'tasks', taskStatus: 'open', teamFilter: 'all',
     memoDate: today(), memoMode: 'day', memoScope: 'me', memoData: { notes: [], logs: [] }, memoLoaded: false,
     dl: { from: today().slice(0, 8) + '01', to: today(), scope: 'all' },
@@ -878,7 +869,8 @@ function sortTasks(list, status){
     }
     return list.slice().sort((a, b) => (b.closed_at || b.created_at) > (a.closed_at || a.created_at) ? 1 : -1);
 }
-function taskRow(t, showWho){
+function rootOf(t){ const a = ancestors(t); return a.length ? a[0] : null; }   // いちばん大本のタスク
+function taskRow(t, showWho, hideRoot){
     const di = dueInfo(t);
     const txt = dueText(t);
     const mine = t.assignee_id === S.me.id;
@@ -886,8 +878,8 @@ function taskRow(t, showWho){
     const lab = dueLabel(t);
     const dueHTML = t.status === 'open' && t.due_date ? `<span class="due ${di.cls}">${fmtMD(t.due_date)}<span class="dl">${esc(lab)}</span></span>` : (txt ? `<span class="due">${esc(txt)}</span>` : '');
     const teamTag = IS_ADMIN() && !S.viewTeam && mem(t.assignee_id) ? `<span>${esc(teamLabel(mem(t.assignee_id).team))}</span>` : '';
-    const par = t.parent_id ? findTask(t.parent_id) : null, pg = subProgress(t);
-    const meta = [par ? `<span class="dim">↳ ${esc(par.title)}</span>` : '', dueHTML, showWho ? who : '', teamTag].filter(Boolean).join('');
+    const root = hideRoot ? null : rootOf(t), pg = subProgress(t);
+    const meta = [root ? `<span class="dim">■ ${esc(root.title)}</span>` : '', dueHTML, showWho ? who : '', teamTag].filter(Boolean).join('');
     return `<button class="row ${mine ? 'mine' : ''}" data-act="openTask" data-id="${t.id}"><span class="dot ${di.cls === 'ok' ? '' : di.cls}"></span>
         <span class="rb"><span class="rt">${esc(t.title)}${S.newIds.has(t.id) ? '<span class="new">NEW</span>' : ''}</span>${meta ? `<span class="rm">${meta}</span>` : ''}${pg ? `<span class="pbar"><i style="width:${Math.round(pg.done / pg.total * 100)}%"></i></span>` : ''}</span>${pg ? `<span class="chip">${pg.done}/${pg.total}</span>` : ''}${svg('chev', 16)}</button>`;
 }
@@ -1544,44 +1536,13 @@ function sheetTask(top){
         ${actions}
         <div class="gh">履歴${logs ? `<span class="n">${logs.length}</span>` : ''}</div><div class="list">${tl}</div></div>`;
 }
-/* サブタスクの欄：入れ子の一覧（丸で完了、矢印で畳む、題名をタップでそのサブタスクの詳細）と、追加の入力 */
-function subTreeHTML(pid, depth, viewOnly){
-    return childrenOf(pid).filter(k => k.status !== 'dropped').map(k => {
-        const kk = childrenOf(k.id).filter(x => x.status !== 'dropped'), fold = S.subFold.has(k.id), pg = subProgress(k);
-        const can = !viewOnly && S.tasks.includes(k), done = k.status === 'done';
-        const chev = kk.length ? `<button class="subchev" data-act="subFold" data-id="${k.id}" aria-label="${fold ? '開く' : '畳む'}">${svg(fold ? 'chev' : 'chevdown', 14, 2.4)}</button>` : '<span class="subchev"></span>';
-        const cir = can ? `<button class="cir ${done ? 'd' : ''}" data-act="subToggle" data-id="${k.id}" aria-label="${done ? '進行中に戻す' : '完了にする'}">${done ? svg('check', 12, 3.4) : ''}</button>` : `<span class="cir ${done ? 'd' : ''}">${done ? svg('check', 12, 3.4) : ''}</span>`;
-        const di = dueInfo(k), meta = [`<span>${nameH(k.assignee_id)}</span>`, k.status === 'open' && k.due_date ? `<span class="due ${di.cls === 'ok' ? '' : di.cls}">${fmtMD(k.due_date)}<span class="dl">${esc(dueLabel(k))}</span></span>` : ''].filter(Boolean).join('');
-        return `<div class="subrow" style="padding-left:${6 + Math.min(depth, 6) * 18}px">${chev}${cir}<button class="subt" data-act="openTask" data-id="${k.id}"><span class="${done ? 'sdone' : ''}">${esc(k.title)}</span><span class="rm">${meta}</span></button>${pg ? `<span class="chip">${pg.done}/${pg.total}</span>` : ''}</div>`
-            + (kk.length && !fold ? subTreeHTML(k.id, depth + 1, viewOnly) : '');
-    }).join('');
-}
+/* 「このタスクの下のタスク」：普通のタスクと同じ行で並べる（サブタスクも、立派なタスク） */
 function subSectionHTML(t, viewOnly){
-    const tree = subTreeHTML(t.id, 0, viewOnly), pg = subProgress(t), canAdd = !viewOnly && t.status === 'open';
-    if (!tree && !canAdd) return '';
-    return `<div class="gh">サブタスク${pg ? `<span class="n">${pg.done}/${pg.total}</span>` : ''}</div>
-        ${tree ? `<div class="list">${tree}</div>` : ''}
-        ${canAdd ? `<div class="subadd"><input id="subTitle" class="inp" maxlength="80" autocomplete="off" placeholder="サブタスクを追加（題名を入れて Enter）"><button class="btn sm" data-act="subAdd">追加</button></div>` : ''}`;
-}
-async function addSub(){
-    const t = curTask(), inp = $('#subTitle'); if (!t || !inp) return;
-    const title = inp.value.trim(); if (!title) return;
-    const m = S.members.find(x => x.id === t.assignee_id && !x.is_hidden);
-    const row = { id: uuid(), team: S.me.team, title, detail: '', assignee_id: m ? t.assignee_id : S.me.id, created_by: S.me.id, due_date: null, status: 'open', parent_id: t.id };
-    inp.value = '';
-    try {
-        await API.insert('lab_tasks', row);
-        S.tasks.unshift({ ...row, closed_at: null, closed_date: null, created_at: new Date().toISOString() });
-        if (row.assignee_id === S.me.id) markSeen(row.id);
-        S.logs[row.id] = [];
-        S.subFold.delete(t.id);
-        renderSheet(); const n = $('#subTitle'); if (n) n.focus();
-        await logAdd(row.id, 'create', `担当：${memName(row.assignee_id)}　期限：なし`);
-        saveCache(); updateNew();
-    } catch (e) {
-        renderSheet(); const n = $('#subTitle'); if (n) n.value = title;
-        if (/parent_id/.test(e.message || '')) toast('サブタスク用のSQL（supabase-subtask.sql）がまだ実行されていません', 5000); else handleErr(e);
-    }
+    const kids = childrenOf(t.id).filter(k => k.status !== 'dropped'), pg = subProgress(t);
+    if (!kids.length && viewOnly) return '';
+    return `<div class="gh">このタスクの下のタスク${pg ? `<span class="n">${pg.done}/${pg.total}</span>` : ''}</div>
+        ${kids.length ? `<div class="list">${sortTasks(kids, 'open').map(k => taskRow(k, true, true)).join('')}</div>` : ''}
+        ${viewOnly ? '' : `<button class="btn ghost sm" style="margin-top:8px" data-act="subNew">＋ このタスクの下にタスクを作る</button>`}`;
 }
 async function openTask(id){
     if (!findTask(id)) return;
@@ -1660,6 +1621,10 @@ async function reopen(task, quick){
 function sheetForm(top){
     const t = top.id ? S.tasks.find(x => x.id === top.id) : null;
     const v = t || { title: '', detail: '', assignee_id: top.assignee || S.me.id, due_date: '' };
+    const curParent = t ? (t.parent_id || '') : (top.parent || '');
+    const banned = new Set(t ? [t.id, ...descendants(t.id).map(x => x.id)] : []);   // 自分と、自分の下のタスクは、親にできない
+    const pl = S.tasks.filter(x => x.status !== 'dropped' && !banned.has(x.id)).map(x => ({ id: x.id, label: [...ancestors(x).map(a => a.title), x.title].join(' › ') })).sort((a, b) => a.label.localeCompare(b.label, 'ja'));
+    const popts = `<option value="">なし（単発のタスク）</option>` + pl.map(x => `<option value="${x.id}" ${x.id === curParent ? 'selected' : ''}>${esc(x.label.length > 44 ? x.label.slice(0, 43) + '…' : x.label)}</option>`).join('');
     const opts = S.members.filter(m => !m.is_hidden || m.id === v.assignee_id).map(m => `<option value="${m.id}" ${m.id === v.assignee_id ? 'selected' : ''}>${esc(m.name)}${m.id === S.me.id ? '（自分）' : ''}${m.is_hidden ? '（非表示）' : ''}</option>`).join('');
     return sheetHead(t ? 'タスク編集' : '新規タスク') + `<div class="sheet-body">
         <label class="l" style="margin-top:0" for="fTitle">タスク名</label>
@@ -1667,6 +1632,9 @@ function sheetForm(top){
         <div class="grid2"><div><label class="l" for="fAssignee">担当</label><select id="fAssignee" class="inp">${opts}</select></div>
           <div><label class="l" for="fDue">期限</label><input id="fDue" class="inp" type="date" value="${v.due_date || ''}"></div></div>
         <div class="quick"><button data-act="quickDue" data-n="0">今日</button><button data-act="quickDue" data-n="1">明日</button><button data-act="quickDue" data-n="7">1週間後</button><button data-act="quickDue" data-n="-1">期限なし</button></div>
+        <label class="l" for="fParent">大本のタスク（任意）</label>
+        <select id="fParent" class="inp">${popts}</select>
+        <p class="hint" style="margin:4px 2px 0">大きなタスクの一部として作るときに選びます。ふつうのタスクとして扱われます。</p>
         <label class="l" for="fDetail">詳細（任意）</label>
         <textarea id="fDetail" class="inp" rows="3">${esc(v.detail)}</textarea>
         <p class="err" id="ferr" hidden></p>
@@ -1677,7 +1645,7 @@ async function saveTask(){
     const top = S.sheets[S.sheets.length - 1];
     const title = $('#fTitle').value.trim();
     if (!title) { const e = $('#ferr'); e.textContent = 'タスク名を入れてください'; e.hidden = false; $('#fTitle').focus(); return; }
-    const detail = $('#fDetail').value.trim(), assignee = $('#fAssignee').value, due = $('#fDue').value || null;
+    const detail = $('#fDetail').value.trim(), assignee = $('#fAssignee').value, due = $('#fDue').value || null, parent = ($('#fParent') || {}).value || null;
     const btn = document.querySelector('[data-act="saveTask"]'); btn.disabled = true;
     try {
         if (top.id) {
@@ -1687,6 +1655,7 @@ async function saveTask(){
             if (detail !== t.detail) patch.detail = detail;
             if (assignee !== t.assignee_id) patch.assignee_id = assignee;
             if (due !== (t.due_date || null)) patch.due_date = due;
+            if (parent !== (t.parent_id || null)) patch.parent_id = parent;
             if (Object.keys(patch).length) {
                 const oldAssignee = t.assignee_id, oldDue = t.due_date;
                 await API.patch('lab_tasks', t.id, patch);
@@ -1698,10 +1667,10 @@ async function saveTask(){
                 saveCache(); updateNew();
             }
             const par = t.parent_id ? findTask(t.parent_id) : null;
-            if (par && par.due_date && t.due_date && t.due_date > par.due_date) toast(`保存しました（親タスクの期限 ${fmtMD(par.due_date)} より後です）`, 4500);
+            if (par && par.due_date && t.due_date && t.due_date > par.due_date) toast(`保存しました（大本のタスクの期限 ${fmtMD(par.due_date)} より後です）`, 4500);
             else toast('保存しました');
         } else {
-            const row = { id: uuid(), team: S.me.team, title, detail, assignee_id: assignee, created_by: S.me.id, due_date: due, status: 'open' };
+            const row = { id: uuid(), team: S.me.team, title, detail, assignee_id: assignee, created_by: S.me.id, due_date: due, status: 'open', ...(parent ? { parent_id: parent } : {}) };
             await API.insert('lab_tasks', row);
             S.tasks.unshift({ ...row, closed_at: null, closed_date: null, created_at: new Date().toISOString() });
             if (assignee === S.me.id) markSeen(row.id);
@@ -1711,7 +1680,7 @@ async function saveTask(){
             toast(assignee === S.me.id ? 'タスクを作りました' : `${memName(assignee)}さんにタスクを渡しました`);
         }
         closeSheet();
-    } catch (e) { btn.disabled = false; handleErr(e); }
+    } catch (e) { btn.disabled = false; if (/parent_id/.test(e.message || '')) toast('サブタスク用のSQL（supabase-subtask.sql）がまだ実行されていません', 5000); else handleErr(e); }
 }
 
 /* ---------- チームの作成・参加・移動・脱退・名前変更 ----------
@@ -2241,9 +2210,7 @@ document.addEventListener('click', e => {
         case 'filter': S.teamFilter = v; render(); break;
         case 'reload': refreshAll(); checkUnread(); if (S.tab === 'memo') loadMemo(); toast('更新しました', 1200); break;
         case 'newTask': pushSheet({ type: 'form', assignee: S.me.id }); break;
-        case 'subAdd': addSub(); break;
-        case 'subFold': { const id = el.dataset.id; if (S.subFold.has(id)) S.subFold.delete(id); else S.subFold.add(id); renderSheet(); break; }
-        case 'subToggle': { const k = findTask(el.dataset.id); if (k) { if (k.status === 'done') reopen(k, true); else finish('done', k, true); } break; }
+        case 'subNew': { const t = curTask(); if (t) { const m = S.members.find(x => x.id === t.assignee_id && !x.is_hidden); pushSheet({ type: 'form', assignee: m ? t.assignee_id : S.me.id, parent: t.id }); } break; }
         case 'newEvent': pushSheet({ type: 'event' }); break;
         case 'evOpen': pushSheet({ type: 'event', id: el.dataset.id, ids: (el.dataset.ids || el.dataset.id).split(',') }); break;
         case 'evTeam': { const tp = S.sheets[S.sheets.length - 1]; const t = el.dataset.t; if (tp.sel.has(t)) tp.sel.delete(t); else tp.sel.add(t); renderSheet(); break; }
@@ -2330,9 +2297,6 @@ document.addEventListener('change', e => {
     if (e.target.id === 'memoDate') setMemoDate(e.target.value);
     if (e.target.id === 'showPw') $('#pw').type = e.target.checked ? 'text' : 'password';
     if (e.target.id === 'showApw') $('#apw').type = e.target.checked ? 'text' : 'password';
-});
-document.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && !e.isComposing && e.target.id === 'subTitle') { e.preventDefault(); addSub(); }
 });
 document.addEventListener('input', e => {
     if (e.target.id === 'msgText') { const t = e.target; t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 130) + 'px'; }
