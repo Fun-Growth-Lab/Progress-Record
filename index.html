@@ -68,6 +68,8 @@ svg{display:block}
 .row>svg{flex:none;color:var(--dim)}
 .due{font-weight:500}.due .dl{margin-left:6px;font-weight:700}.due.over{color:var(--bad)}.due.today,.due.soon{color:var(--warn)}
 .row.mine{box-shadow:inset 3px 0 0 var(--pri)}
+.row.tp{box-shadow:inset 4px 0 0 var(--pri)}
+.row.tc{box-shadow:inset 4px 0 0 var(--purple)}
 .row .rm>.me-tag::before{content:none}
 .row .rm>.me-tag{margin-left:6px}
 .me-tag{display:inline-block;height:17px;line-height:17px;padding:0 6px;border-radius:9px;font-size:11px;font-weight:700;color:var(--pri);background:var(--pri-l)}
@@ -869,8 +871,33 @@ function sortTasks(list, status){
     }
     return list.slice().sort((a, b) => (b.closed_at || b.created_at) > (a.closed_at || a.created_at) ? 1 : -1);
 }
-function rootOf(t){ const a = ancestors(t); return a.length ? a[0] : null; }   // いちばん大本のタスク
-function taskRow(t, showWho, hideRoot){
+/* 子タスクの期限は、親タスクの期限より後にできない。問題があれば、警告の文を返す（なければ空） */
+function dueProblem(id, due, parentId){
+    const anc = []; const seen = new Set(id ? [id] : []);
+    let p = parentId ? findTask(parentId) : null;
+    while (p && !seen.has(p.id)) { anc.push(p); seen.add(p.id); p = p.parent_id ? findTask(p.parent_id) : null; }
+    const kids = id ? descendants(id).filter(x => x.status === 'open' && x.due_date) : [];
+    if (due) {
+        const bad = anc.find(a => a.due_date && due > a.due_date);
+        if (bad) return `親タスク「${bad.title}」の期限（${fmtMD(bad.due_date)}）より後にはできません。`;
+        const k = kids.find(x => x.due_date > due);
+        if (k) return `子タスク「${k.title}」の期限（${fmtMD(k.due_date)}）が、この期限より後です。先に子タスクの期限を変えてください。`;
+    } else if (kids.length) {
+        const k = kids.slice().sort((a, b) => a.due_date < b.due_date ? 1 : -1)[0];
+        const bad = anc.find(a => a.due_date && k.due_date > a.due_date);
+        if (bad) return `子タスク「${k.title}」の期限（${fmtMD(k.due_date)}）が、親タスク「${bad.title}」の期限（${fmtMD(bad.due_date)}）より後になります。`;
+    }
+    return '';
+}
+function dueBounds(id, parentId){   // 日付欄の選べる範囲（親の期限まで／子の期限から）
+    const anc = []; const seen = new Set(id ? [id] : []); let p = parentId ? findTask(parentId) : null;
+    while (p && !seen.has(p.id)) { anc.push(p); seen.add(p.id); p = p.parent_id ? findTask(p.parent_id) : null; }
+    const max = anc.map(a => a.due_date).filter(Boolean).sort()[0] || '';
+    const min = (id ? descendants(id).filter(x => x.status === 'open' && x.due_date).map(x => x.due_date).sort().pop() : '') || '';
+    return `${max ? `max="${max}"` : ''} ${min ? `min="${min}"` : ''}`;
+}
+function rootOf(t){ const a = ancestors(t); return a.length ? a[0] : null; }   // いちばん上の親タスク
+function taskRow(t, showWho, hideRoot, depth, grouped){
     const di = dueInfo(t);
     const txt = dueText(t);
     const mine = t.assignee_id === S.me.id;
@@ -878,21 +905,42 @@ function taskRow(t, showWho, hideRoot){
     const lab = dueLabel(t);
     const dueHTML = t.status === 'open' && t.due_date ? `<span class="due ${di.cls}">${fmtMD(t.due_date)}<span class="dl">${esc(lab)}</span></span>` : (txt ? `<span class="due">${esc(txt)}</span>` : '');
     const teamTag = IS_ADMIN() && !S.viewTeam && mem(t.assignee_id) ? `<span>${esc(teamLabel(mem(t.assignee_id).team))}</span>` : '';
-    const root = hideRoot ? null : rootOf(t), pg = subProgress(t);
+    const root = hideRoot || !t.parent_id ? null : rootOf(t), pg = subProgress(t);
+    const role = t.parent_id ? 'tc' : childrenOf(t.id).some(k => k.status !== 'dropped') ? 'tp' : '';   // 親タスク／子タスクの色分け（左の帯）
     const meta = [root ? `<span class="dim">■ ${esc(root.title)}</span>` : '', dueHTML, showWho ? who : '', teamTag].filter(Boolean).join('');
-    return `<button class="row ${mine ? 'mine' : ''}" data-act="openTask" data-id="${t.id}"><span class="dot ${di.cls === 'ok' ? '' : di.cls}"></span>
+    return `<button class="row ${role} ${mine && !grouped && !role ? 'mine' : ''}" ${depth ? `style="padding-left:${12 + Math.min(depth, 5) * 16}px"` : ''} data-act="openTask" data-id="${t.id}"><span class="dot ${di.cls === 'ok' ? '' : di.cls}"></span>
         <span class="rb"><span class="rt">${esc(t.title)}${S.newIds.has(t.id) ? '<span class="new">NEW</span>' : ''}</span>${meta ? `<span class="rm">${meta}</span>` : ''}${pg ? `<span class="pbar"><i style="width:${Math.round(pg.done / pg.total * 100)}%"></i></span>` : ''}</span>${pg ? `<span class="chip">${pg.done}/${pg.total}</span>` : ''}${svg('chev', 16)}</button>`;
 }
 function emptyMsg(){
     return { open: IS_ADMIN() ? '<b>進行中のタスクはありません</b>' : '<b>進行中のタスクはありません</b>右下の＋から追加できます', over: '<b>期限切れのタスクはありません</b>', done: '<b>完了したタスクはありません</b>' }[S.taskStatus] || '<b>タスクはありません</b>';
 }
+/* 親→子の順に並べる（子は右にずらす）。兄弟は期限が早い順（完了は、完了が新しい順）。表示中の中に親がいない子は、いちばん上として並べる */
+function orderTasks(list, status){
+    const ids = new Set(list.map(t => t.id)), kids = new Map(), roots = [];
+    list.forEach(t => { if (t.parent_id && t.parent_id !== t.id && ids.has(t.parent_id)) { if (!kids.has(t.parent_id)) kids.set(t.parent_id, []); kids.get(t.parent_id).push(t); } else roots.push(t); });
+    const cmp = (a, b) => {
+        if (status === 'done') { const x = a.closed_at || a.created_at, y = b.closed_at || b.created_at; return x < y ? 1 : x > y ? -1 : 0; }
+        const ad = a.due_date || '9999-99-99', bd = b.due_date || '9999-99-99';
+        return ad < bd ? -1 : ad > bd ? 1 : (a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0);
+    };
+    const out = [], seen = new Set();
+    const walk = (t, d) => { if (seen.has(t.id)) return; seen.add(t.id); out.push({ t, depth: d }); (kids.get(t.id) || []).sort(cmp).forEach(k => walk(k, d + 1)); };
+    roots.sort(cmp).forEach(t => walk(t, 0));
+    list.forEach(t => walk(t, 0));   // 念のため（循環などで漏れたもの）
+    return out;
+}
 function taskListHTML(list, showWho){
     if (!list.length) return `<div class="empty">${emptyMsg()}</div>`;
-    if (S.taskStatus !== 'open') return `<div class="list" style="margin-top:10px">${sortTasks(list, S.taskStatus).map(t => taskRow(t, showWho)).join('')}</div>`;
-    const sorted = sortTasks(list, 'open');
-    return GROUPS.map(([g, label]) => {
-        const items = sorted.filter(t => dueGroup(t) === g);
-        return items.length ? `<div class="gh ${g}">${label}<span class="n">${items.length}</span></div><div class="list">${items.map(t => taskRow(t, showWho)).join('')}</div>` : '';
+    const by = new Map();
+    list.forEach(t => { if (!by.has(t.assignee_id)) by.set(t.assignee_id, []); by.get(t.assignee_id).push(t); });
+    const tm = id => (mem(id) || {}).team || '';
+    const people = [...by.keys()].sort((a, b) => (a === S.me.id ? -1 : b === S.me.id ? 1 : 0) || (IS_ADMIN() ? tm(a).localeCompare(tm(b), 'ja') : 0) || memName(a).localeCompare(memName(b), 'ja'));
+    const multi = people.length > 1;
+    return people.map(pid => {
+        const rows = orderTasks(by.get(pid), S.taskStatus).map(o => taskRow(o.t, false, o.depth > 0, o.depth, true)).join('');
+        const teamTag = IS_ADMIN() && !S.viewTeam && mem(pid) ? `<span class="tag">${esc(teamLabel(tm(pid)))}</span>` : '';
+        const head = multi ? `<div class="gh">${nameH(pid)}${pid === S.me.id ? '<span class="me-tag" style="margin-left:6px">自分</span>' : ''}${teamTag}<span class="n">${by.get(pid).length}</span></div>` : '';
+        return `${head}<div class="list"${multi ? '' : ' style="margin-top:10px"'}>${rows}</div>`;
     }).join('');
 }
 function segHTML(list){
@@ -1529,20 +1577,20 @@ function sheetTask(top){
         <div class="list">
           <div class="prow"><span>担当</span><b>${nameH(t.assignee_id)}</b></div>
           <div class="prow"><span>期限</span><b>${t.due_date ? fmtMD(t.due_date) : 'なし'}</b></div>
-          <div class="prow"><span>依頼</span><b>${nameH(t.created_by)}</b></div>
+          ${t.created_by && t.created_by !== t.assignee_id ? `<div class="prow"><span>依頼</span><b>${nameH(t.created_by)}</b></div>` : ''}
           <div class="prow"><span>作成</span><b>${fmtMD(isoDate(t.created_at))}</b></div></div>
         ${t.detail ? `<div class="detail">${esc(t.detail)}</div>` : ''}
         ${subSectionHTML(t, viewOnly)}
         ${actions}
         <div class="gh">履歴${logs ? `<span class="n">${logs.length}</span>` : ''}</div><div class="list">${tl}</div></div>`;
 }
-/* 「このタスクの下のタスク」：普通のタスクと同じ行で並べる（サブタスクも、立派なタスク） */
+/* 「子タスク」：普通のタスクと同じ行で並べる（子タスクも、立派なタスク） */
 function subSectionHTML(t, viewOnly){
     const kids = childrenOf(t.id).filter(k => k.status !== 'dropped'), pg = subProgress(t);
     if (!kids.length && viewOnly) return '';
-    return `<div class="gh">このタスクの下のタスク${pg ? `<span class="n">${pg.done}/${pg.total}</span>` : ''}</div>
+    return `<div class="gh">子タスク${pg ? `<span class="n">${pg.done}/${pg.total}</span>` : ''}</div>
         ${kids.length ? `<div class="list">${sortTasks(kids, 'open').map(k => taskRow(k, true, true)).join('')}</div>` : ''}
-        ${viewOnly ? '' : `<button class="btn ghost sm" style="margin-top:8px" data-act="subNew">＋ このタスクの下にタスクを作る</button>`}`;
+        ${viewOnly ? '' : `<button class="btn ghost sm" style="margin-top:8px" data-act="subNew">＋ 子タスクを作る</button>`}`;
 }
 async function openTask(id){
     if (!findTask(id)) return;
@@ -1578,20 +1626,20 @@ function choiceBox({ title, desc, options }){
         };
     });
 }
-/* 完了／破棄。未完了のサブタスクがあるとき：完了は「まとめて／親だけ」を選ばせ、破棄は確認して子もまとめて破棄 */
+/* 完了／破棄。未完了の子タスクがあるとき：完了は「まとめて／親だけ」を選ばせ、破棄は確認して子もまとめて破棄 */
 async function finish(kind, task, quick){
     const t = task || curTask(); if (!t) return;
     const isDone = kind === 'done';
     const openKids = descendants(t.id).filter(x => x.status === 'open');
     let cascade = !isDone && openKids.length > 0;
     if (isDone && openKids.length) {
-        const c = await choiceBox({ title: '未完了のサブタスクがあります', desc: `「${t.title}」には、未完了のサブタスクが${openKids.length}件あります。`,
-            options: [{ label: 'サブタスクもまとめて完了', val: 'all' }, { label: 'この親タスクだけ完了', val: 'one' }] });
+        const c = await choiceBox({ title: '未完了の子タスクがあります', desc: `「${t.title}」には、未完了の子タスクが${openKids.length}件あります。`,
+            options: [{ label: '子タスクもまとめて完了', val: 'all' }, { label: 'この親タスクだけ完了', val: 'one' }] });
         if (!c) return; cascade = c === 'all';
     }
     const r = quick ? { text: '', date: today() } : await askBox({
         title: isDone ? 'タスクを完了にする' : 'タスクを破棄',
-        desc: t.title + (!isDone && openKids.length ? `\n未完了のサブタスク${openKids.length}件も、まとめて破棄されます。` : ''),
+        desc: t.title + (!isDone && openKids.length ? `\n未完了の子タスク${openKids.length}件も、まとめて破棄されます。` : ''),
         placeholder: isDone ? '結果・ひとこと（任意）' : '破棄する理由（任意）',
         ok: isDone ? '完了にする' : '破棄', danger: !isDone, date: today(), dateLabel: isDone ? '完了した日' : '破棄した日'
     });
@@ -1630,11 +1678,11 @@ function sheetForm(top){
         <label class="l" style="margin-top:0" for="fTitle">タスク名</label>
         <input id="fTitle" class="inp" maxlength="80" placeholder="例：実験結果をまとめる" value="${esc(v.title)}">
         <div class="grid2"><div><label class="l" for="fAssignee">担当</label><select id="fAssignee" class="inp">${opts}</select></div>
-          <div><label class="l" for="fDue">期限</label><input id="fDue" class="inp" type="date" value="${v.due_date || ''}"></div></div>
+          <div><label class="l" for="fDue">期限</label><input id="fDue" class="inp" type="date" value="${v.due_date || ''}" ${dueBounds(t ? t.id : null, curParent)}></div></div>
         <div class="quick"><button data-act="quickDue" data-n="0">今日</button><button data-act="quickDue" data-n="1">明日</button><button data-act="quickDue" data-n="7">1週間後</button><button data-act="quickDue" data-n="-1">期限なし</button></div>
-        <label class="l" for="fParent">大本のタスク（任意）</label>
+        <label class="l" for="fParent">親タスク（任意）</label>
         <select id="fParent" class="inp">${popts}</select>
-        <p class="hint" style="margin:4px 2px 0">大きなタスクの一部として作るときに選びます。ふつうのタスクとして扱われます。</p>
+        <p class="hint" style="margin:4px 2px 0">大きなタスクの一部（子タスク）として作るときに選びます。子タスクの期限は、親タスクの期限より後にはできません。</p>
         <label class="l" for="fDetail">詳細（任意）</label>
         <textarea id="fDetail" class="inp" rows="3">${esc(v.detail)}</textarea>
         <p class="err" id="ferr" hidden></p>
@@ -1646,6 +1694,8 @@ async function saveTask(){
     const title = $('#fTitle').value.trim();
     if (!title) { const e = $('#ferr'); e.textContent = 'タスク名を入れてください'; e.hidden = false; $('#fTitle').focus(); return; }
     const detail = $('#fDetail').value.trim(), assignee = $('#fAssignee').value, due = $('#fDue').value || null, parent = ($('#fParent') || {}).value || null;
+    const prob = dueProblem(top.id || null, due, parent);
+    if (prob) { const e = $('#ferr'); e.textContent = prob + '（実行できません）'; e.hidden = false; toast('期限を確認してください', 3000); return; }
     const btn = document.querySelector('[data-act="saveTask"]'); btn.disabled = true;
     try {
         if (top.id) {
@@ -1667,7 +1717,7 @@ async function saveTask(){
                 saveCache(); updateNew();
             }
             const par = t.parent_id ? findTask(t.parent_id) : null;
-            if (par && par.due_date && t.due_date && t.due_date > par.due_date) toast(`保存しました（大本のタスクの期限 ${fmtMD(par.due_date)} より後です）`, 4500);
+            if (par && par.due_date && t.due_date && t.due_date > par.due_date) toast(`保存しました（親タスクの期限 ${fmtMD(par.due_date)} より後です）`, 4500);
             else toast('保存しました');
         } else {
             const row = { id: uuid(), team: S.me.team, title, detail, assignee_id: assignee, created_by: S.me.id, due_date: due, status: 'open', ...(parent ? { parent_id: parent } : {}) };
@@ -1680,7 +1730,7 @@ async function saveTask(){
             toast(assignee === S.me.id ? 'タスクを作りました' : `${memName(assignee)}さんにタスクを渡しました`);
         }
         closeSheet();
-    } catch (e) { btn.disabled = false; if (/parent_id/.test(e.message || '')) toast('サブタスク用のSQL（supabase-subtask.sql）がまだ実行されていません', 5000); else handleErr(e); }
+    } catch (e) { btn.disabled = false; if (/parent_id/.test(e.message || '')) toast('子タスク用のSQL（supabase-subtask.sql）がまだ実行されていません', 5000); else handleErr(e); }
 }
 
 /* ---------- チームの作成・参加・移動・脱退・名前変更 ----------
@@ -2299,6 +2349,7 @@ document.addEventListener('change', e => {
     if (e.target.id === 'showApw') $('#apw').type = e.target.checked ? 'text' : 'password';
 });
 document.addEventListener('input', e => {
+    if (e.target.id === 'fParent') { const top = S.sheets[S.sheets.length - 1], d = $('#fDue'); if (d) { d.removeAttribute('max'); d.removeAttribute('min'); const b = dueBounds(top && top.id, e.target.value); const mx = /max="([^"]+)"/.exec(b), mn = /min="([^"]+)"/.exec(b); if (mx) d.max = mx[1]; if (mn) d.min = mn[1]; } }
     if (e.target.id === 'msgText') { const t = e.target; t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 130) + 'px'; }
 });
 
